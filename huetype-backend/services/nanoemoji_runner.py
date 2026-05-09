@@ -102,9 +102,10 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
             capture_output=True,
             text=True,
             timeout=300,  # 5-minute hard timeout
+            cwd=str(workdir),
         )
         if result.returncode != 0:
-            raise RuntimeError(f"nanoemoji failed:\n{result.stderr[:2000]}")
+            raise RuntimeError(f"nanoemoji failed:\n{result.stderr[-3000:]}\nSTDOUT:\n{result.stdout[-1000:]}")
 
         # ── Find output files ────────────────────────────────────────────────
         out_path = Path(output_dir)
@@ -144,7 +145,7 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         db.table("font_jobs").update(
             {
                 "status": "failed",
-                "error_message": str(exc)[:1000],
+                "error_message": str(exc)[:4000],
                 "completed_at": datetime.now(timezone.utc).isoformat(),
             }
         ).eq("id", job_id).execute()
