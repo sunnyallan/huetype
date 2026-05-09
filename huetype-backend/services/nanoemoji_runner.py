@@ -93,7 +93,13 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
             cwd=str(workdir),
         )
         if result.returncode != 0:
-            raise RuntimeError(f"nanoemoji failed:\n{result.stderr[-3000:]}\nSTDOUT:\n{result.stdout[-1000:]}")
+            svg_exists = {g["rel_path"]: (workdir / g["rel_path"]).exists() for g in glyphs}
+            raise RuntimeError(
+                f"nanoemoji failed:\n{result.stderr[-2000:]}\n"
+                f"STDOUT:\n{result.stdout[-1000:]}\n"
+                f"CONFIG:\n{config_toml}\n"
+                f"SVG FILES EXIST: {svg_exists}"
+            )
 
         # ── Find output files anywhere under workdir ─────────────────────────
         woff2_files = list(workdir.rglob("*.woff2"))
