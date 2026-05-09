@@ -70,15 +70,12 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         family = proj_res.data.get("name", "Hue Type Icons")
 
         # ── Run nanoemoji with SVGs passed directly on the CLI ───────────────
-        output_dir = str(workdir / "out")
-        Path(output_dir).mkdir()
         svg_paths = [g["local_path"] for g in glyphs]
         result = subprocess.run(
             [
                 "nanoemoji",
                 "--color_format", color_format,
                 "--family", family,
-                "--output_dir", output_dir,
             ] + svg_paths,
             capture_output=True,
             text=True,
@@ -88,10 +85,9 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         if result.returncode != 0:
             raise RuntimeError(f"nanoemoji failed:\n{result.stderr[-3000:]}\nSTDOUT:\n{result.stdout[-1000:]}")
 
-        # ── Find output files ────────────────────────────────────────────────
-        out_path = Path(output_dir)
-        woff2_files = list(out_path.glob("*.woff2"))
-        ttf_files = list(out_path.glob("*.ttf"))
+        # ── Find output files anywhere under workdir ─────────────────────────
+        woff2_files = list(workdir.rglob("*.woff2"))
+        ttf_files = [f for f in workdir.rglob("*.ttf") if f not in woff2_files]
 
         if not woff2_files and not ttf_files:
             raise RuntimeError("nanoemoji produced no output files")
