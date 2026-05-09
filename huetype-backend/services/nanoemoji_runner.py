@@ -78,7 +78,6 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         config_toml = f"""[font]
   family = "{family}"
   version = "1.0"
-  color_format = "{color_format}"
 
 {glyph_entries}
 """
@@ -87,7 +86,7 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
 
         # ── Run nanoemoji via config file ────────────────────────────────────
         result = subprocess.run(
-            ["nanoemoji", "--config_file", "config.toml"],
+            ["nanoemoji", "--color_format", color_format, "--config_file", "config.toml"],
             capture_output=True,
             text=True,
             timeout=300,
