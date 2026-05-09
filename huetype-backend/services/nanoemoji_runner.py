@@ -57,48 +57,35 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         if not glyphs:
             raise ValueError("No glyphs found in project")
 
-        # ── Download SVGs into svgs/ subdir ────────────────────────────────
+        # ── Download SVGs using nanoemoji's filename convention (emoji_u<hex>.svg, lowercase) ──
         for g in glyphs:
             svg_bytes = storage.download_file(storage.SVG_BUCKET, g["svg_storage_path"])
             cp_int = int(g["codepoint"], 16)
-            local_path = svg_dir / f"{g['name']}_u{cp_int:04X}.svg"
+            local_path = svg_dir / f"emoji_u{cp_int:04x}.svg"
             local_path.write_bytes(svg_bytes)
-            # store path relative to workdir so config.toml resolves correctly
-            g["rel_path"] = f"svgs/{local_path.name}"
+            g["local_path"] = str(local_path)
 
         # ── Fetch project name for font family ──────────────────────────────
         proj_res = db.table("projects").select("name").eq("id", project_id).single().execute()
         family = proj_res.data.get("name", "Hue Type Icons")
 
-        # ── Write config.toml with relative SVG paths ───────────────────────
-        glyph_entries = "\n\n".join(
-            f'[[glyphs]]\n  filename = "{g["rel_path"]}"\n  codepoints = [{hex(int(g["codepoint"], 16))}]'
-            for g in glyphs
-        )
-        config_toml = f"""[font]
-  family = "{family}"
-  version = "1.0"
-
-{glyph_entries}
-"""
-        config_path = workdir / "config.toml"
-        config_path.write_text(config_toml)
-
-        # ── Run nanoemoji via config file ────────────────────────────────────
+        # ── Run nanoemoji with SVGs passed directly on the CLI ───────────────
+        svg_paths = [g["local_path"] for g in glyphs]
         result = subprocess.run(
-            ["nanoemoji", "--color_format", color_format, "--config_file", "config.toml"],
+            [
+                "nanoemoji",
+                "--color_format", color_format,
+                "--family", family,
+            ] + svg_paths,
             capture_output=True,
             text=True,
             timeout=300,
             cwd=str(workdir),
         )
         if result.returncode != 0:
-            svg_exists = {g["rel_path"]: (workdir / g["rel_path"]).exists() for g in glyphs}
             raise RuntimeError(
                 f"nanoemoji failed:\n{result.stderr[-2000:]}\n"
-                f"STDOUT:\n{result.stdout[-1000:]}\n"
-                f"CONFIG:\n{config_toml}\n"
-                f"SVG FILES EXIST: {svg_exists}"
+                f"STDOUT:\n{result.stdout[-1500:]}"
             )
 
         # ── Find output files anywhere under workdir ─────────────────────────
