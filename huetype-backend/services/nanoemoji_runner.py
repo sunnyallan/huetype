@@ -98,7 +98,7 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
 
         # ── Run nanoemoji ────────────────────────────────────────────────────
         result = subprocess.run(
-            ["nanoemoji", "--color_format", color_format, "--config", str(config_path)],
+            ["nanoemoji", "--color_format", color_format, "--config_file", str(config_path)],
             capture_output=True,
             text=True,
             timeout=300,  # 5-minute hard timeout
