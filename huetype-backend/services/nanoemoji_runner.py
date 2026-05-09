@@ -14,7 +14,6 @@ Flow:
 """
 
 import os
-import csv
 import shutil
 import subprocess
 import tempfile
@@ -23,26 +22,6 @@ from datetime import datetime, timezone
 
 from services.db import db
 from services import storage
-
-
-def _toml_config(family: str, glyphs: list[dict], output_dir: str) -> str:
-    """Generates a nanoemoji config.toml from a list of glyph dicts."""
-    lines = [
-        f'[font]',
-        f'  family = "{family}"',
-        f'  version = "1.0"',
-        f'  output_dir = "{output_dir}"',
-        "",
-    ]
-    for g in glyphs:
-        cp_int = int(g["codepoint"], 16)
-        lines += [
-            "[[glyphs]]",
-            f'  filename = "{g["local_path"]}"',
-            f"  codepoints = [{hex(cp_int)}]",
-            "",
-        ]
-    return "\n".join(lines)
 
 
 async def run_font_job(job_id: str, project_id: str, user_id: str, color_format: str) -> None:
@@ -78,10 +57,11 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         if not glyphs:
             raise ValueError("No glyphs found in project")
 
-        # ── Download SVGs from Supabase Storage ─────────────────────────────
+        # ── Download SVGs — embed codepoint in filename so nanoemoji auto-detects it
         for g in glyphs:
             svg_bytes = storage.download_file(storage.SVG_BUCKET, g["svg_storage_path"])
-            local_path = svg_dir / f"{g['id']}.svg"
+            cp_int = int(g["codepoint"], 16)
+            local_path = svg_dir / f"{g['name']}_u{cp_int:04X}.svg"
             local_path.write_bytes(svg_bytes)
             g["local_path"] = str(local_path)
 
@@ -89,19 +69,20 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         proj_res = db.table("projects").select("name").eq("id", project_id).single().execute()
         family = proj_res.data.get("name", "Hue Type Icons")
 
-        # ── Write config.toml ───────────────────────────────────────────────
+        # ── Run nanoemoji with SVGs passed directly on the CLI ───────────────
         output_dir = str(workdir / "out")
         Path(output_dir).mkdir()
-        config_content = _toml_config(family, glyphs, output_dir)
-        config_path = workdir / "config.toml"
-        config_path.write_text(config_content)
-
-        # ── Run nanoemoji ────────────────────────────────────────────────────
+        svg_paths = [g["local_path"] for g in glyphs]
         result = subprocess.run(
-            ["nanoemoji", "--color_format", color_format, "--config_file", str(config_path)],
+            [
+                "nanoemoji",
+                "--color_format", color_format,
+                "--family", family,
+                "--output_dir", output_dir,
+            ] + svg_paths,
             capture_output=True,
             text=True,
-            timeout=300,  # 5-minute hard timeout
+            timeout=300,
             cwd=str(workdir),
         )
         if result.returncode != 0:
