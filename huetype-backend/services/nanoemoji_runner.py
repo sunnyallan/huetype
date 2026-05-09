@@ -57,26 +57,37 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         if not glyphs:
             raise ValueError("No glyphs found in project")
 
-        # ── Download SVGs — embed codepoint in filename so nanoemoji auto-detects it
+        # ── Download SVGs into svgs/ subdir ────────────────────────────────
         for g in glyphs:
             svg_bytes = storage.download_file(storage.SVG_BUCKET, g["svg_storage_path"])
             cp_int = int(g["codepoint"], 16)
             local_path = svg_dir / f"{g['name']}_u{cp_int:04X}.svg"
             local_path.write_bytes(svg_bytes)
-            g["local_path"] = str(local_path)
+            # store path relative to workdir so config.toml resolves correctly
+            g["rel_path"] = f"svgs/{local_path.name}"
 
         # ── Fetch project name for font family ──────────────────────────────
         proj_res = db.table("projects").select("name").eq("id", project_id).single().execute()
         family = proj_res.data.get("name", "Hue Type Icons")
 
-        # ── Run nanoemoji with SVGs passed directly on the CLI ───────────────
-        svg_paths = [g["local_path"] for g in glyphs]
+        # ── Write config.toml with relative SVG paths ───────────────────────
+        glyph_entries = "\n\n".join(
+            f'[[glyphs]]\n  filename = "{g["rel_path"]}"\n  codepoints = [{hex(int(g["codepoint"], 16))}]'
+            for g in glyphs
+        )
+        config_toml = f"""[font]
+  family = "{family}"
+  version = "1.0"
+  color_format = "{color_format}"
+
+{glyph_entries}
+"""
+        config_path = workdir / "config.toml"
+        config_path.write_text(config_toml)
+
+        # ── Run nanoemoji via config file ────────────────────────────────────
         result = subprocess.run(
-            [
-                "nanoemoji",
-                "--color_format", color_format,
-                "--family", family,
-            ] + svg_paths,
+            ["nanoemoji", "--config_file", "config.toml"],
             capture_output=True,
             text=True,
             timeout=300,
