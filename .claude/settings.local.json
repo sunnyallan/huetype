@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed -i '' 's/ChromaFont/Hue Type/g; s/chromafont-backend/huetype-backend/g; s/chromafont-frontend/huetype-frontend/g; s/chromafont-api/huetype-api/g; s|/chromafont|/huetype|g; s/chromafont/huetype/g' /Users/apple/.claude/plans/hey-i-would-like-distributed-kitten.md)",
+      "Bash(sed -i '' 's/ChromaFont/Hue Type/g; s/chromafont/huetype/g' /Users/apple/.claude/projects/-Users-apple-Documents-Multi-colour-Icon-Font/memory/project_chromafont.md)",
+      "Bash(mv \"/Users/apple/Documents/Multi-colour Icon Font\" \"/Users/apple/Documents/huetype\" && echo \"Done\")"
+    ]
+  }
+}
