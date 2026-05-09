@@ -24,7 +24,7 @@ def _assert_project_owner(project_id: str, user_id: str) -> None:
         .maybe_single()
         .execute()
     )
-    if not res.data:
+    if res is None or not res.data:
         raise HTTPException(status_code=404, detail="Project not found")
 
 
@@ -175,7 +175,7 @@ def delete_glyph(project_id: str, glyph_id: str, user_id: str = Depends(verify_t
         .maybe_single()
         .execute()
     )
-    if not glyph_res.data:
+    if glyph_res is None or not glyph_res.data:
         raise HTTPException(status_code=404, detail="Glyph not found")
 
     # Delete from storage

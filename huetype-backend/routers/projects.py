@@ -78,7 +78,7 @@ def get_project(project_id: str, user_id: str = Depends(verify_token)):
         .maybe_single()
         .execute()
     )
-    if not proj_res.data:
+    if proj_res is None or not proj_res.data:
         raise HTTPException(status_code=404, detail="Project not found")
 
     glyphs_res = (
@@ -115,7 +115,7 @@ def update_project(project_id: str, body: ProjectCreate, user_id: str = Depends(
         .maybe_single()
         .execute()
     )
-    if not proj_res.data:
+    if proj_res is None or not proj_res.data:
         raise HTTPException(status_code=404, detail="Project not found")
 
     result = (
@@ -144,7 +144,7 @@ def delete_project(project_id: str, user_id: str = Depends(verify_token)):
         .maybe_single()
         .execute()
     )
-    if not proj_res.data:
+    if proj_res is None or not proj_res.data:
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Best-effort storage cleanup before DB delete

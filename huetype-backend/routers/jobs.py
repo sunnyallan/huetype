@@ -20,7 +20,7 @@ def _assert_project_owner(project_id: str, user_id: str) -> None:
         .maybe_single()
         .execute()
     )
-    if not res.data:
+    if res is None or not res.data:
         raise HTTPException(status_code=404, detail="Project not found")
 
 
@@ -88,7 +88,7 @@ def get_job(project_id: str, job_id: str, user_id: str = Depends(verify_token)):
         .maybe_single()
         .execute()
     )
-    if not job_res.data:
+    if job_res is None or not job_res.data:
         raise HTTPException(status_code=404, detail="Job not found")
 
     return job_res.data
@@ -112,7 +112,7 @@ def get_download_url(
         .maybe_single()
         .execute()
     )
-    if not job_res.data:
+    if job_res is None or not job_res.data:
         raise HTTPException(status_code=404, detail="Job not found")
 
     job = job_res.data
