@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 
 from services.db import db
 from services import storage
+from services.svg_recolor import recolor_svg
 
 
 async def run_font_job(job_id: str, project_id: str, user_id: str, color_format: str) -> None:
@@ -57,17 +58,43 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
         if not glyphs:
             raise ValueError("No glyphs found in project")
 
-        # ── Download SVGs using nanoemoji's filename convention (emoji_u<hex>.svg, lowercase) ──
+        # ── Fetch project (for name, font_type, palette) ────────────────────
+        proj_res = (
+            db.table("projects")
+            .select("name, font_type, palette")
+            .eq("id", project_id)
+            .single()
+            .execute()
+        )
+        family = proj_res.data.get("name", "Hue Type Icons")
+        font_type = proj_res.data.get("font_type", "illustration")
+        palette = proj_res.data.get("palette", []) or []
+
+        # ── Validate palette for duo/tri-tone projects ──────────────────────
+        required_slots = {"duo": 2, "tri": 3}.get(font_type)
+        if required_slots and len(palette) < required_slots:
+            raise ValueError(
+                f"Project requires {required_slots} palette colour(s) for {font_type}-tone "
+                f"but only {len(palette)} are configured."
+            )
+
+        # ── Download SVGs (recolour against palette for duo/tri-tone) ───────
         for g in glyphs:
             svg_bytes = storage.download_file(storage.SVG_BUCKET, g["svg_storage_path"])
             cp_int = int(g["codepoint"], 16)
             local_path = svg_dir / f"emoji_u{cp_int:04x}.svg"
-            local_path.write_bytes(svg_bytes)
-            g["local_path"] = str(local_path)
 
-        # ── Fetch project name for font family ──────────────────────────────
-        proj_res = db.table("projects").select("name").eq("id", project_id).single().execute()
-        family = proj_res.data.get("name", "Hue Type Icons")
+            if font_type in ("duo", "tri"):
+                try:
+                    svg_text = svg_bytes.decode("utf-8")
+                    recoloured = recolor_svg(svg_text, palette[:required_slots])
+                    local_path.write_text(recoloured, encoding="utf-8")
+                except ValueError as exc:
+                    raise ValueError(f"Glyph '{g['name']}': {exc}") from exc
+            else:
+                local_path.write_bytes(svg_bytes)
+
+            g["local_path"] = str(local_path)
 
         # ── Run nanoemoji with SVGs passed directly on the CLI ───────────────
         svg_paths = [g["local_path"] for g in glyphs]

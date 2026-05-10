@@ -50,6 +50,14 @@ def create_project(body: ProjectCreate, user_id: str = Depends(verify_token)):
                 detail=f"Free plan is limited to {limits['projects']} projects. Upgrade to Pro for unlimited projects.",
             )
 
+    # Validate palette length matches font_type
+    required_slots = {"duo": 2, "tri": 3}.get(body.font_type, 0)
+    if required_slots and len(body.palette) != required_slots:
+        raise HTTPException(
+            status_code=400,
+            detail=f"font_type '{body.font_type}' requires exactly {required_slots} palette colours.",
+        )
+
     now = datetime.now(timezone.utc).isoformat()
     result = (
         db.table("projects")
@@ -59,6 +67,8 @@ def create_project(body: ProjectCreate, user_id: str = Depends(verify_token)):
                 "name": body.name,
                 "description": body.description or "",
                 "status": "draft",
+                "font_type": body.font_type,
+                "palette": body.palette,
                 "created_at": now,
                 "updated_at": now,
             }
@@ -118,12 +128,22 @@ def update_project(project_id: str, body: ProjectCreate, user_id: str = Depends(
     if proj_res is None or not proj_res.data:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # Validate palette length matches font_type if changing
+    required_slots = {"duo": 2, "tri": 3}.get(body.font_type, 0)
+    if required_slots and len(body.palette) != required_slots:
+        raise HTTPException(
+            status_code=400,
+            detail=f"font_type '{body.font_type}' requires exactly {required_slots} palette colours.",
+        )
+
     result = (
         db.table("projects")
         .update(
             {
                 "name": body.name,
                 "description": body.description or "",
+                "font_type": body.font_type,
+                "palette": body.palette,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
         )

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hue Type — Font Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #eee;
+      min-height: 100vh;
+      padding: 40px;
+    }
+
+    h1 {
+      font-size: 14px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 40px;
+    }
+
+    @font-face {
+      font-family: "HueType";
+      src: url("2e6c4b84-9d3b-4463-bb4c-6518e9aac5eb.ttf") format("truetype");
+    }
+
+    @font-palette-values --custom-palette {
+      font-family: "HueType";
+      override-colors:
+        0 rgb(30,132,73),
+        1 rgb(39,174,96),
+        2 rgb(169,223,191),
+        3 rgb(192,57,43),
+        4 rgb(230,126,34),
+        5 rgb(231,76,60),
+        6 rgb(241,148,138),
+        7 rgb(243,156,18),
+        8 rgb(253,235,208),
+        9 rgb(255,107,53),
+        10 rgb(255,217,61),
+        11 rgb(255,245,183);
+    }
+
+    .icons {
+      font-family: "HueType";
+      font-size: var(--size, 80px);
+      line-height: 1.2;
+      letter-spacing: 0.05em;
+      /* colour override — only affects fallback/monochrome rendering */
+      color: var(--icon-color, #ffffff);
+    }
+
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 32px;
+      margin-bottom: 48px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .card .glyph {
+      font-family: "HueType";
+      font-size: var(--size, 80px);
+      font-palette: --custom-palette;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .card .label {
+      font-size: 11px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .card .codepoint {
+      font-size: 10px;
+      color: #444;
+      margin-top: 4px;
+      font-family: monospace;
+    }
+
+    /* Controls */
+    .controls {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 40px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    input[type="range"] {
+      width: 180px;
+      accent-color: #7c6af5;
+    }
+
+    input[type="color"] {
+      width: 48px;
+      height: 36px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: none;
+    }
+
+    .value-display {
+      font-size: 12px;
+      color: #888;
+      margin-left: 8px;
+      font-family: monospace;
+    }
+
+    /* Palette row */
+    .palette {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+
+    .swatch {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.15s;
+    }
+
+    .swatch:hover { border-color: #fff; }
+    .swatch.active { border-color: #7c6af5; }
+
+    /* Sentence preview */
+    .preview-box {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 32px;
+      margin-bottom: 40px;
+    }
+
+    .preview-box h2 {
+      font-size: 11px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+
+    .preview-text {
+      font-family: "HueType";
+      font-size: 48px;
+      font-palette: --custom-palette;
+      word-break: break-all;
+    }
+
+    /* Background toggle */
+    .bg-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 40px;
+    }
+
+    .bg-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #888;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    .bg-btn:hover { background: #2a2a2a; color: #eee; }
+    .bg-btn.active { background: #7c6af5; color: #fff; border-color: #7c6af5; }
+
+    /* Sections */
+    h2.section {
+      font-size: 11px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Hue Type — Font Test ✦ Test Project</h1>
+
+  <!-- Background toggle -->
+  <div class="bg-toggle">
+    <button class="bg-btn active" onclick="setBg('#0f0f0f', this)">Dark</button>
+    <button class="bg-btn" onclick="setBg('#ffffff', this)">Light</button>
+    <button class="bg-btn" onclick="setBg('#7c6af5', this)">Purple</button>
+    <button class="bg-btn" onclick="setBg('#f5f0e8', this)">Cream</button>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="control-group">
+      <label>Size <span class="value-display" id="size-val">80px</span></label>
+      <input type="range" min="16" max="200" value="80" oninput="setSize(this.value)">
+    </div>
+  </div>
+
+  <!-- Palette slot editors -->
+  <h2 class="section">Edit palette colours</h2>
+  <div id="palette-editors" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:40px;"></div>
+
+  <!-- Glyph grid -->
+  <h2 class="section">Glyphs</h2>
+  <div class="grid">
+    <div class="card">
+      <span class="glyph">&#xE001;</span>
+      <div class="label">U+E001</div>
+    </div>
+    <div class="card">
+      <span class="glyph">&#xE002;</span>
+      <div class="label">U+E002</div>
+    </div>
+    <div class="card">
+      <span class="glyph">&#xE003;</span>
+      <div class="label">U+E003</div>
+    </div>
+    <div class="card">
+      <span class="glyph">&#xE004;</span>
+      <div class="label">U+E004</div>
+    </div>
+    <div class="card">
+      <span class="glyph">&#x00EA;</span>
+      <div class="label">U+00EA</div>
+    </div>
+    <div class="card">
+      <span class="glyph">&#x0EAF;</span>
+      <div class="label">U+0EAF</div>
+    </div>
+    <div class="card">
+      <span class="glyph">&#x000A;</span>
+      <div class="label">U+000A</div>
+    </div>
+  </div>
+
+  <!-- Sentence preview -->
+  <div class="preview-box">
+    <h2>All glyphs in sequence</h2>
+    <div class="preview-text">&#xE001;&#xE002;&#xE003;&#xE004;</div>
+  </div>
+
+  <!-- Font info -->
+  <div style="font-size:11px;color:#444;font-family:monospace;line-height:1.8">
+    <div>Font family: HueType</div>
+    <div>Format: TTF (COLR/CPAL v1)</div>
+    <div>Glyphs: 4 (E001–E004)</div>
+    <div>Built by: nanoemoji</div>
+  </div>
+
+  <script>
+    // Original CPAL colours from the font
+    const palette = [
+      [30,132,73], [39,174,96], [169,223,191],
+      [192,57,43], [230,126,34], [231,76,60],
+      [241,148,138], [243,156,18], [253,235,208],
+      [255,107,53], [255,217,61], [255,245,183]
+    ];
+
+    const labels = [
+      'Leaf dark','Leaf mid','Leaf light',
+      'Heart dark','Star dark','Heart mid',
+      'Heart shine','Star mid','Star shine',
+      'Sun mid','Sun outer','Sun shine'
+    ];
+
+    const styleEl = document.createElement('style');
+    document.head.appendChild(styleEl);
+
+    function toHex(r,g,b) {
+      return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+    }
+
+    function hexToRgb(hex) {
+      const r = parseInt(hex.slice(1,3),16);
+      const g = parseInt(hex.slice(3,5),16);
+      const b = parseInt(hex.slice(5,7),16);
+      return [r,g,b];
+    }
+
+    function updatePaletteCSS() {
+      const entries = palette.map((c,i) => `${i} rgb(${c[0]},${c[1]},${c[2]})`).join(',\n        ');
+      styleEl.textContent = `
+        @font-palette-values --custom-palette {
+          font-family: "HueType";
+          override-colors: ${entries};
+        }`;
+    }
+
+    function buildEditors() {
+      const container = document.getElementById('palette-editors');
+      palette.forEach((c, i) => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px';
+
+        const picker = document.createElement('input');
+        picker.type = 'color';
+        picker.value = toHex(...c);
+        picker.style.cssText = 'width:44px;height:44px;border:none;border-radius:8px;cursor:pointer;padding:2px;background:#1a1a1a';
+        picker.oninput = () => {
+          palette[i] = hexToRgb(picker.value);
+          updatePaletteCSS();
+        };
+
+        const lbl = document.createElement('div');
+        lbl.textContent = labels[i];
+        lbl.style.cssText = 'font-size:9px;color:#555;text-align:center;max-width:52px;line-height:1.3';
+
+        wrap.appendChild(picker);
+        wrap.appendChild(lbl);
+        container.appendChild(wrap);
+      });
+    }
+
+    function setSize(v) {
+      document.documentElement.style.setProperty('--size', v + 'px');
+      document.getElementById('size-val').textContent = v + 'px';
+    }
+
+    function setBg(color, btn) {
+      document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.body.style.background = color;
+      document.body.style.color = color === '#ffffff' || color === '#f5f0e8' ? '#111' : '#eee';
+    }
+
+    buildEditors();
+    updatePaletteCSS();
+  </script>
+
+</body>
+</html>

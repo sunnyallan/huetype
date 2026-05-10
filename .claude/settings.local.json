@@ -3,7 +3,24 @@
     "allow": [
       "Bash(sed -i '' 's/ChromaFont/Hue Type/g; s/chromafont-backend/huetype-backend/g; s/chromafont-frontend/huetype-frontend/g; s/chromafont-api/huetype-api/g; s|/chromafont|/huetype|g; s/chromafont/huetype/g' /Users/apple/.claude/plans/hey-i-would-like-distributed-kitten.md)",
       "Bash(sed -i '' 's/ChromaFont/Hue Type/g; s/chromafont/huetype/g' /Users/apple/.claude/projects/-Users-apple-Documents-Multi-colour-Icon-Font/memory/project_chromafont.md)",
-      "Bash(mv \"/Users/apple/Documents/Multi-colour Icon Font\" \"/Users/apple/Documents/huetype\" && echo \"Done\")"
+      "Bash(mv \"/Users/apple/Documents/Multi-colour Icon Font\" \"/Users/apple/Documents/huetype\" && echo \"Done\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(python3 -c ' *)",
+      "Bash(mv ~/Downloads/f0ee285c-fe8c-47a9-9e4f-449eba9b3542.ttf /Users/apple/Documents/huetype/test-svgs/)",
+      "Bash(npm install *)",
+      "Bash(npm audit *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(curl -sI http://localhost:3000)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(curl -sI http://localhost:3000/login)",
+      "Bash(curl -s -o /dev/null -w \"GET /: %{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"GET /login: %{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s -o /tmp/r1 -w \"GET /: %{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(curl -s -o /tmp/r2 -w \"GET /login: %{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s http://localhost:3000/)"
     ]
   }
 }
