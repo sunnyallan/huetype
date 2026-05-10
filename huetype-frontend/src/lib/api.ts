@@ -2,12 +2,16 @@ import { createClient } from "./supabase-browser";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
+export type FontType = "illustration" | "duo" | "tri";
+
 export type Project = {
   id: string;
   user_id: string;
   name: string;
   description: string | null;
   status: "draft" | "building" | "ready" | "error";
+  font_type: FontType;
+  palette: string[];
   created_at: string;
   updated_at: string;
   glyph_count?: number;
@@ -85,16 +89,29 @@ export const api = {
 
   getProject: (id: string) => apiFetch<ProjectDetail>(`/projects/${id}`),
 
-  createProject: (name: string, description: string) =>
+  createProject: (params: {
+    name: string;
+    description: string;
+    font_type: FontType;
+    palette: string[];
+  }) =>
     apiFetch<Project>("/projects", {
       method: "POST",
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify(params),
     }),
 
-  updateProject: (id: string, name: string, description: string) =>
+  updateProject: (
+    id: string,
+    params: {
+      name: string;
+      description: string;
+      font_type: FontType;
+      palette: string[];
+    },
+  ) =>
     apiFetch<Project>(`/projects/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify(params),
     }),
 
   deleteProject: (id: string) =>

@@ -94,11 +94,31 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
       return;
     }
     try {
-      await api.updateProject(projectId, nameInput, project.description ?? "");
+      await api.updateProject(projectId, {
+        name: nameInput,
+        description: project.description ?? "",
+        font_type: project.font_type,
+        palette: project.palette,
+      });
       setEditingName(false);
       await load();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to rename");
+    }
+  }
+
+  async function savePalette(palette: string[]) {
+    if (!project) return;
+    try {
+      await api.updateProject(projectId, {
+        name: project.name,
+        description: project.description ?? "",
+        font_type: project.font_type,
+        palette,
+      });
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save palette");
     }
   }
 
@@ -171,9 +191,27 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
         </div>
       )}
 
+      <div className="mb-4 flex items-center gap-2 text-xs text-text-muted">
+        <span className="px-2 py-0.5 rounded bg-bg-card border border-border">
+          {project.font_type === "illustration"
+            ? "Illustration"
+            : project.font_type === "duo"
+              ? "Duo-tone"
+              : "Tri-tone"}
+        </span>
+        <span>· Click name above to rename</span>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: glyph management */}
         <section className="space-y-4">
+          {(project.font_type === "duo" || project.font_type === "tri") && (
+            <PaletteEditor
+              palette={project.palette}
+              onSave={savePalette}
+            />
+          )}
+
           <Dropzone onFiles={handleFiles} uploading={uploading} />
 
           {project.glyphs.length > 0 && (
@@ -349,6 +387,88 @@ function BuildPanel({
           {job.error_message.slice(0, 800)}
         </pre>
       )}
+    </div>
+  );
+}
+
+function PaletteEditor({
+  palette,
+  onSave,
+}: {
+  palette: string[];
+  onSave: (palette: string[]) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<string[]>(palette);
+  const [saving, setSaving] = useState(false);
+
+  // Sync when project palette refreshes from server
+  useEffect(() => {
+    setDraft(palette);
+  }, [palette]);
+
+  const dirty = draft.some((c, i) => c !== palette[i]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave(draft);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs uppercase tracking-wider text-text-secondary">
+          Global palette
+        </h3>
+        {dirty && (
+          <span className="text-[10px] text-yellow-400">
+            Rebuild needed to apply
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {draft.map((c, i) => (
+          <div key={i} className="flex flex-col items-center gap-1">
+            <input
+              type="color"
+              value={c}
+              onChange={(e) => {
+                const next = [...draft];
+                next[i] = e.target.value;
+                setDraft(next);
+              }}
+              className="w-12 h-12 bg-transparent border-0 cursor-pointer rounded"
+            />
+            <span className="text-[10px] text-text-muted font-mono">
+              Layer {i + 1}
+            </span>
+          </div>
+        ))}
+      </div>
+      {dirty && (
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="btn-primary text-xs"
+          >
+            {saving ? "Saving…" : "Save palette"}
+          </button>
+          <button
+            onClick={() => setDraft(palette)}
+            className="btn-ghost text-xs"
+          >
+            Discard
+          </button>
+        </div>
+      )}
+      <p className="text-[10px] text-text-muted mt-3 leading-relaxed">
+        These colours apply at build time. After saving, hit Build to regenerate
+        all glyphs with the new palette.
+      </p>
     </div>
   );
 }
