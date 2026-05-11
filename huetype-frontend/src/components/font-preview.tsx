@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { api, type Glyph } from "@/lib/api";
+import Loader from "@/components/loader";
 
 type Props = {
   projectId: string;
@@ -131,9 +132,8 @@ export default function FontPreview({ projectId, jobId, fontName, glyphs }: Prop
 
   if (loading)
     return (
-      <div className="card p-8 text-center">
-        <Loader2 className="animate-spin mx-auto mb-2 text-text-muted" size={20} />
-        <p className="text-sm text-text-muted">Loading font…</p>
+      <div className="card p-12 flex items-center justify-center">
+        <Loader size="md" label="Loading font…" />
       </div>
     );
 

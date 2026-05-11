@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload, Trash2, Hammer, Download, Check } from "lucide-react";
 import { api, type ProjectDetail, type Glyph, type FontJob } from "@/lib/api";
 import FontPreview from "@/components/font-preview";
+import Loader from "@/components/loader";
 
 export default function ProjectClient({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -134,7 +135,11 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   }
 
   if (loading)
-    return <p className="p-8 text-text-muted text-sm">Loading…</p>;
+    return (
+      <main className="min-h-screen flex items-center justify-center p-8">
+        <Loader size="md" label="Loading project…" />
+      </main>
+    );
   if (!project) return <p className="p-8 text-red-400 text-sm">Project not found</p>;
 
   const job = project.latest_job;
@@ -244,14 +249,21 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
               fontName={project.name}
               glyphs={project.glyphs}
             />
+          ) : isBuilding ? (
+            <div className="card p-12 flex flex-col items-center">
+              <Loader
+                size="lg"
+                label="Building your font…"
+                longWaitMs={20000}
+                longWaitLabel="Almost there — nanoemoji is rasterising glyphs and assembling the COLR table."
+              />
+            </div>
           ) : (
             <div className="card p-12 text-center">
               <p className="text-text-secondary text-sm">
-                {isBuilding
-                  ? "Building your font…"
-                  : project.glyphs.length === 0
-                    ? "Upload some SVGs to get started"
-                    : "Build your font to preview it here"}
+                {project.glyphs.length === 0
+                  ? "Upload some SVGs to get started"
+                  : "Build your font to preview it here"}
               </p>
             </div>
           )}

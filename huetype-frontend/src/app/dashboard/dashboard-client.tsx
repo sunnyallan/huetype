@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Plus, LogOut, FileText, Palette, Layers, Image as ImageIcon, ArrowLeft, ArrowRight } from "lucide-react";
 import { api, type Project, type FontType } from "@/lib/api";
 import { createClient } from "@/lib/supabase-browser";
+import Loader from "@/components/loader";
 
 export default function DashboardClient({ userEmail }: { userEmail: string }) {
   const router = useRouter();
@@ -94,7 +95,9 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
       )}
 
       {loading ? (
-        <p className="text-text-muted text-sm">Loading…</p>
+        <div className="py-16 flex justify-center">
+          <Loader size="md" label="Loading your fonts…" />
+        </div>
       ) : projects.length === 0 ? (
         <div className="card p-12 text-center">
           <FileText size={32} className="mx-auto mb-3 text-text-muted" />
