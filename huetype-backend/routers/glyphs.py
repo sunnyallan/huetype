@@ -8,6 +8,7 @@ from models.glyph import GlyphUpdate
 from services.auth import verify_token
 from services.db import db, get_tier_limits
 from services import storage
+from services.svg_recolor import unique_fills, has_unsupported_fills
 
 router = APIRouter(prefix="/projects/{project_id}/glyphs", tags=["glyphs"])
 
@@ -27,6 +28,68 @@ def _assert_project_owner(project_id: str, user_id: str) -> None:
     )
     if res is None or not res.data:
         raise HTTPException(status_code=404, detail="Project not found")
+
+
+def _get_project_font_type(project_id: str, user_id: str) -> str:
+    res = (
+        db.table("projects")
+        .select("font_type")
+        .eq("id", project_id)
+        .eq("user_id", user_id)
+        .maybe_single()
+        .execute()
+    )
+    if res is None or not res.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return res.data.get("font_type", "illustration")
+
+
+def _validate_svg_for_font_type(svg_text: str, font_type: str) -> int:
+    """
+    Validates an SVG against a project's font type.
+    Returns the layer count (number of unique fill colours).
+    Raises HTTPException(422) with a clear message on failure.
+    """
+    if has_unsupported_fills(svg_text):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "This SVG uses gradient or pattern fills, which Hue Type can't "
+                "process yet. Replace them with solid fills and try again."
+            ),
+        )
+
+    fills = unique_fills(svg_text)
+    layer_count = len(fills)
+
+    if layer_count == 0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "This SVG has no solid fill colours. Add a fill='#…' to each "
+                "shape so we know what colours to use."
+            ),
+        )
+
+    if font_type == "duo" and layer_count != 2:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Duo-tone projects need exactly 2 colour layers, but this SVG "
+                f"has {layer_count}. Adjust the SVG or switch the project type."
+            ),
+        )
+
+    if font_type == "tri" and layer_count != 3:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Tri-tone projects need exactly 3 colour layers, but this SVG "
+                f"has {layer_count}. Adjust the SVG or switch the project type."
+            ),
+        )
+
+    return layer_count
 
 
 def _count_svg_layers(svg_bytes: bytes) -> int:
@@ -88,8 +151,29 @@ async def upload_glyph(
     if len(svg_bytes) > 2 * 1024 * 1024:  # 2 MB hard cap
         raise HTTPException(status_code=413, detail="SVG file exceeds 2 MB limit")
 
-    # Validate SVG and count layers
-    layer_count = _count_svg_layers(svg_bytes)
+    # Parse XML to confirm it's actually an SVG
+    try:
+        svg_text = svg_bytes.decode("utf-8")
+        root = ET.fromstring(svg_text)
+    except (UnicodeDecodeError, ET.ParseError):
+        raise HTTPException(
+            status_code=422,
+            detail="File is not a valid SVG — could not parse as XML.",
+        )
+
+    # Confirm the root element is an SVG
+    root_tag = root.tag.split("}")[-1].lower()
+    if root_tag != "svg":
+        raise HTTPException(
+            status_code=422,
+            detail="File is not a valid SVG — root element is not <svg>.",
+        )
+
+    # Project-type-specific validation (also counts unique fills as layer_count)
+    font_type = _get_project_font_type(project_id, user_id)
+    layer_count = _validate_svg_for_font_type(svg_text, font_type)
+
+    # Plan limit on max layers
     if layer_count > limits["layers"]:
         raise HTTPException(
             status_code=403,

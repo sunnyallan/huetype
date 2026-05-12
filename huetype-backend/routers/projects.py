@@ -99,6 +99,17 @@ def get_project(project_id: str, user_id: str = Depends(verify_token)):
         .execute()
     )
 
+    # Attach short-lived signed URLs so the frontend can show SVG thumbnails
+    # before the font is built.
+    glyphs = glyphs_res.data or []
+    for g in glyphs:
+        svg_path = g.get("svg_storage_path")
+        if svg_path:
+            try:
+                g["svg_url"] = storage.get_signed_url("svgs", svg_path, expires_in=3600)
+            except Exception:
+                g["svg_url"] = None
+
     job_res = (
         db.table("font_jobs")
         .select("*")
@@ -110,7 +121,7 @@ def get_project(project_id: str, user_id: str = Depends(verify_token)):
 
     return {
         **proj_res.data,
-        "glyphs": glyphs_res.data or [],
+        "glyphs": glyphs,
         "latest_job": job_res.data[0] if job_res.data else None,
     }
 

@@ -40,6 +40,34 @@ def _normalise(colour: str) -> str:
     return c
 
 
+def unique_fills(svg_text: str) -> list[str]:
+    """Return unique fill colour values in the SVG, in document order (normalised)."""
+    seen: list[str] = []
+    seen_set = set()
+
+    def _record(val: str) -> None:
+        norm = _normalise(val)
+        if norm not in seen_set:
+            seen_set.add(norm)
+            seen.append(norm)
+
+    for m in _FILL_ATTR.finditer(svg_text):
+        _record(m.group("val"))
+    for m in _STYLE_FILL.finditer(svg_text):
+        _record(m.group("val"))
+
+    return seen
+
+
+# Detect features we don't support recolouring: gradients, patterns, fill="url(#…)"
+_UNSUPPORTED_FILL = re.compile(r'fill\s*=\s*["\']url\(', re.IGNORECASE)
+
+
+def has_unsupported_fills(svg_text: str) -> bool:
+    """True if the SVG uses gradient/pattern fills that our recolour pass can't handle."""
+    return bool(_UNSUPPORTED_FILL.search(svg_text))
+
+
 def recolor_svg(svg_text: str, palette: List[str], allow_truncate: bool = False) -> str:
     """
     Replace fills in an SVG with colours from a palette.
