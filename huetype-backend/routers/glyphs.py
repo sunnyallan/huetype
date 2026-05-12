@@ -92,6 +92,52 @@ def _validate_svg_for_font_type(svg_text: str, font_type: str) -> int:
     return layer_count
 
 
+def _enforce_square(root: ET.Element) -> None:
+    """
+    Verifies the SVG has a 1:1 aspect ratio via viewBox or width/height.
+    Raises HTTPException(422) if not square (with ~1% tolerance).
+    """
+    viewbox = root.attrib.get("viewBox") or root.attrib.get("viewbox")
+    w = h = None
+
+    if viewbox:
+        parts = viewbox.replace(",", " ").split()
+        if len(parts) == 4:
+            try:
+                _, _, w, h = (float(p) for p in parts)
+            except ValueError:
+                pass
+
+    if w is None or h is None:
+        try:
+            raw_w = root.attrib.get("width", "").rstrip("px").strip()
+            raw_h = root.attrib.get("height", "").rstrip("px").strip()
+            if raw_w and raw_h:
+                w = float(raw_w)
+                h = float(raw_h)
+        except ValueError:
+            pass
+
+    if w is None or h is None or w <= 0 or h <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "SVG must declare a viewBox or width/height so we can verify "
+                "its aspect ratio."
+            ),
+        )
+
+    ratio = w / h
+    if abs(ratio - 1.0) > 0.01:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"SVG must be square (1:1 aspect ratio). This one is "
+                f"{w:g}×{h:g} ({ratio:.2f}:1). Resize the artboard before uploading."
+            ),
+        )
+
+
 def _count_svg_layers(svg_bytes: bytes) -> int:
     """Counts top-level <g> groups in the SVG — each group = one colour layer."""
     try:
@@ -168,6 +214,9 @@ async def upload_glyph(
             status_code=422,
             detail="File is not a valid SVG — root element is not <svg>.",
         )
+
+    # Aspect ratio must be 1:1 (icon-friendly)
+    _enforce_square(root)
 
     # Project-type-specific validation (also counts unique fills as layer_count)
     font_type = _get_project_font_type(project_id, user_id)

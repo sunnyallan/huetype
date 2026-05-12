@@ -7,6 +7,7 @@ import { ArrowLeft, Upload, Trash2, Hammer, Check, Pencil } from "lucide-react";
 import { api, type ProjectDetail, type Glyph, type FontJob } from "@/lib/api";
 import FontPreview from "@/components/font-preview";
 import Loader from "@/components/loader";
+import { validateSvgFile } from "@/lib/svg-validate";
 
 const PROJECT_FONT_FAMILY = "HueTypeProjectFont";
 
@@ -95,12 +96,35 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   }, [projectId, lastJobId, isLatestComplete]);
 
   async function handleFiles(files: FileList) {
+    if (!project) return;
     setUploading(true);
     setError(null);
+
+    // Pre-validate all files client-side; collect errors
+    const valid: File[] = [];
+    const errors: string[] = [];
+    for (const file of Array.from(files)) {
+      const result = await validateSvgFile(file, project.font_type);
+      if (result.ok) {
+        valid.push(file);
+      } else {
+        errors.push(result.error);
+      }
+    }
+
+    if (errors.length > 0) {
+      setError(errors.join("  •  "));
+      if (valid.length === 0) {
+        setUploading(false);
+        return;
+      }
+    }
+
     try {
-      for (const file of Array.from(files)) {
-        if (!file.name.toLowerCase().endsWith(".svg")) continue;
-        const name = file.name.replace(/\.svg$/i, "").replace(/[^a-z0-9]+/gi, "_");
+      for (const file of valid) {
+        const name = file.name
+          .replace(/\.svg$/i, "")
+          .replace(/[^a-z0-9]+/gi, "_");
         await api.uploadGlyph(projectId, file, name);
       }
       await load();
