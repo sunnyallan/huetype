@@ -197,11 +197,26 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   if (!project) return <p className="p-8 text-red-400 text-sm">Project not found</p>;
 
   const job = project.latest_job;
-  const isBuilding = job && ["queued", "processing"].includes(job.status);
+  const isBuilding = !!job && ["queued", "processing"].includes(job.status);
   const isReady = job?.status === "complete";
 
   return (
-    <main className="min-h-screen p-8 max-w-6xl mx-auto">
+    <main className="min-h-screen p-8 max-w-6xl mx-auto relative">
+      {isBuilding && (
+        <div className="fixed inset-0 z-40 bg-bg/85 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
+          <Loader
+            size="lg"
+            label="Building your font…"
+            longWaitMs={20000}
+            longWaitLabel="nanoemoji is rasterising glyphs and assembling the COLR table. Hang tight."
+          />
+        </div>
+      )}
+
+      <div
+        className={isBuilding ? "pointer-events-none select-none opacity-60 transition-opacity" : "transition-opacity"}
+        aria-busy={isBuilding}
+      >
       <Link
         href="/dashboard"
         className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 text-sm"
@@ -329,6 +344,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
           )}
         </section>
       </div>
+      </div>
     </main>
   );
 }
@@ -436,7 +452,7 @@ function GlyphCard({
         </button>
       </div>
 
-      {/* Rendered glyph or codepoint placeholder */}
+      {/* Rendered glyph from font, or raw SVG preview, or placeholder */}
       <div className="h-14 w-full flex items-center justify-center mb-1.5">
         {fontFamily ? (
           <span
@@ -448,9 +464,19 @@ function GlyphCard({
           >
             {codepointChar}
           </span>
+        ) : glyph.svg_url ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={glyph.svg_url}
+              alt={glyph.name}
+              className="h-12 w-12 object-contain"
+              loading="lazy"
+            />
+          </>
         ) : (
-          <span className="text-[11px] text-text-muted font-mono">
-            Build to preview
+          <span className="text-[10px] text-text-muted leading-tight px-2 text-center">
+            Preview available after build
           </span>
         )}
       </div>
@@ -526,9 +552,10 @@ function BuildPanel({
           disabled={building || !!isProcessing || glyphCount === 0}
           className="btn-primary"
         >
-          {isProcessing ? (
+          {building || isProcessing ? (
             <>
-              <span className="animate-pulse">●</span> Building
+              <span className="inline-block w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />{" "}
+              Building
             </>
           ) : isReady ? (
             <>

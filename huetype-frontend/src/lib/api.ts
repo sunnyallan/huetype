@@ -24,6 +24,7 @@ export type Glyph = {
   name: string;
   codepoint: string;
   svg_storage_path: string;
+  svg_url?: string | null;
   layer_count: number;
   upload_order: number;
   created_at: string;
