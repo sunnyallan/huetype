@@ -3,10 +3,12 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Trash2, Hammer, Download, Check } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, Hammer, Check, Pencil } from "lucide-react";
 import { api, type ProjectDetail, type Glyph, type FontJob } from "@/lib/api";
 import FontPreview from "@/components/font-preview";
 import Loader from "@/components/loader";
+
+const PROJECT_FONT_FAMILY = "HueTypeProjectFont";
 
 export default function ProjectClient({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -17,6 +19,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const [building, setBuilding] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [fontReady, setFontReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -49,6 +52,48 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     }
   }, [project?.latest_job?.status, load, project?.latest_job]);
 
+  // Register the built font once so all glyph cards can render the real glyph
+  const lastJobId = project?.latest_job?.id;
+  const isLatestComplete = project?.latest_job?.status === "complete";
+  useEffect(() => {
+    if (!isLatestComplete || !lastJobId) {
+      setFontReady(false);
+      return;
+    }
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    let styleEl: HTMLStyleElement | null = null;
+
+    (async () => {
+      try {
+        const { url } = await api.getDownloadUrl(projectId, lastJobId, "ttf");
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+        if (cancelled) return;
+        blobUrl = URL.createObjectURL(new Blob([buf], { type: "font/ttf" }));
+        styleEl = document.createElement("style");
+        styleEl.textContent = `
+          @font-face {
+            font-family: "${PROJECT_FONT_FAMILY}";
+            src: url("${blobUrl}") format("truetype");
+            font-display: block;
+          }
+        `;
+        document.head.appendChild(styleEl);
+        setFontReady(true);
+      } catch {
+        setFontReady(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      setFontReady(false);
+      if (styleEl?.parentNode) styleEl.parentNode.removeChild(styleEl);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [projectId, lastJobId, isLatestComplete]);
+
   async function handleFiles(files: FileList) {
     setUploading(true);
     setError(null);
@@ -73,6 +118,15 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
       await load();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
+  async function handleRename(glyphId: string, newName: string) {
+    try {
+      await api.updateGlyph(projectId, glyphId, newName);
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Rename failed");
     }
   }
 
@@ -224,9 +278,15 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
               <h3 className="text-xs uppercase tracking-wider text-text-secondary mb-3">
                 Glyphs ({project.glyphs.length})
               </h3>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {project.glyphs.map((g) => (
-                  <GlyphCard key={g.id} glyph={g} onDelete={handleDelete} />
+                  <GlyphCard
+                    key={g.id}
+                    glyph={g}
+                    fontFamily={fontReady ? PROJECT_FONT_FAMILY : null}
+                    onDelete={handleDelete}
+                    onRename={handleRename}
+                  />
                 ))}
               </div>
             </div>
@@ -322,22 +382,109 @@ function Dropzone({
 
 function GlyphCard({
   glyph,
+  fontFamily,
   onDelete,
+  onRename,
 }: {
   glyph: Glyph;
+  fontFamily: string | null;
   onDelete: (id: string) => void;
+  onRename: (id: string, newName: string) => void | Promise<void>;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(glyph.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Keep draft in sync if parent reloads project data
+  useEffect(() => {
+    if (!editing) setDraft(glyph.name);
+  }, [glyph.name, editing]);
+
+  function commit() {
+    const next = draft.trim();
+    if (!next || next === glyph.name) {
+      setDraft(glyph.name);
+      setEditing(false);
+      return;
+    }
+    onRename(glyph.id, next);
+    setEditing(false);
+  }
+
+  const codepointChar = String.fromCodePoint(parseInt(glyph.codepoint, 16));
+
   return (
-    <div className="group relative bg-bg-hover rounded-lg p-3 text-center">
-      <button
-        onClick={() => onDelete(glyph.id)}
-        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-950 text-red-400"
-        title="Delete"
-      >
-        <Trash2 size={11} />
-      </button>
-      <p className="text-xs font-medium truncate">{glyph.name}</p>
-      <p className="text-[10px] text-text-muted font-mono mt-1">
+    <div className="group relative bg-bg-hover rounded-lg p-3 flex flex-col items-center text-center">
+      {/* Action buttons (hover) */}
+      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => {
+            setEditing(true);
+            setTimeout(() => inputRef.current?.select(), 0);
+          }}
+          className="p-1 rounded hover:bg-bg text-text-secondary hover:text-text-primary"
+          title="Rename"
+        >
+          <Pencil size={11} />
+        </button>
+        <button
+          onClick={() => onDelete(glyph.id)}
+          className="p-1 rounded hover:bg-red-950 text-red-400"
+          title="Delete"
+        >
+          <Trash2 size={11} />
+        </button>
+      </div>
+
+      {/* Rendered glyph or codepoint placeholder */}
+      <div className="h-14 w-full flex items-center justify-center mb-1.5">
+        {fontFamily ? (
+          <span
+            style={{
+              fontFamily,
+              fontSize: "48px",
+              lineHeight: 1,
+            }}
+          >
+            {codepointChar}
+          </span>
+        ) : (
+          <span className="text-[11px] text-text-muted font-mono">
+            Build to preview
+          </span>
+        )}
+      </div>
+
+      {/* Name (click or pencil to edit) */}
+      {editing ? (
+        <input
+          ref={inputRef}
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") {
+              setDraft(glyph.name);
+              setEditing(false);
+            }
+          }}
+          className="w-full text-xs font-medium text-center bg-bg border border-accent rounded px-1.5 py-0.5 outline-none"
+        />
+      ) : (
+        <button
+          onClick={() => {
+            setEditing(true);
+            setTimeout(() => inputRef.current?.select(), 0);
+          }}
+          className="text-xs font-medium truncate w-full hover:text-accent cursor-text"
+          title="Click to rename"
+        >
+          {glyph.name}
+        </button>
+      )}
+      <p className="text-[10px] text-text-muted font-mono mt-0.5">
         U+{glyph.codepoint}
       </p>
     </div>

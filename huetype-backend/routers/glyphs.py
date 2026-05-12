@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from models.glyph import GlyphUpdate
 from services.auth import verify_token
 from services.db import db, get_tier_limits
 from services import storage
@@ -160,6 +161,37 @@ async def upload_glyph(
     ).eq("id", project_id).execute()
 
     return glyph
+
+
+@router.patch("/{glyph_id}")
+def update_glyph(
+    project_id: str,
+    glyph_id: str,
+    body: GlyphUpdate,
+    user_id: str = Depends(verify_token),
+):
+    _assert_project_owner(project_id, user_id)
+
+    glyph_res = (
+        db.table("glyphs")
+        .select("id")
+        .eq("id", glyph_id)
+        .eq("project_id", project_id)
+        .eq("user_id", user_id)
+        .maybe_single()
+        .execute()
+    )
+    if glyph_res is None or not glyph_res.data:
+        raise HTTPException(status_code=404, detail="Glyph not found")
+
+    result = (
+        db.table("glyphs")
+        .update({"name": body.name})
+        .eq("id", glyph_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    return result.data[0]
 
 
 @router.delete("/{glyph_id}", status_code=204)

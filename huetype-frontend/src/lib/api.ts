@@ -127,6 +127,12 @@ export const api = {
     });
   },
 
+  updateGlyph: (projectId: string, glyphId: string, name: string) =>
+    apiFetch<Glyph>(`/projects/${projectId}/glyphs/${glyphId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+
   deleteGlyph: (projectId: string, glyphId: string) =>
     apiFetch<void>(`/projects/${projectId}/glyphs/${glyphId}`, {
       method: "DELETE",
