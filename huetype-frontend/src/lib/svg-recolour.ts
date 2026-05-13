@@ -37,9 +37,19 @@ export function recolourSvg(svg: string, palette: string[]): string {
     });
 }
 
+const NON_COLOURS = new Set([
+  "none",
+  "transparent",
+  "currentcolor",
+  "inherit",
+  "initial",
+  "unset",
+]);
+
 export function normaliseColour(value: string): string | null {
   const v = value.trim().toLowerCase().replace(/[;,]$/g, "");
-  if (!/^(#(?:[0-9a-f]{3}|[0-9a-f]{6})|rgba?\([^)]*\))$/.test(v)) return null;
+  if (!v || NON_COLOURS.has(v)) return null;
+  if (v.startsWith("url(") || v.startsWith("var(")) return null;
   if (v.startsWith("#") && v.length === 4) {
     return "#" + v.slice(1).split("").map((c) => c + c).join("");
   }

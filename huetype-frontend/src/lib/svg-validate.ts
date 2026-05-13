@@ -11,7 +11,15 @@
 
 import type { FontType } from "./api";
 
-const HEX_OR_RGB = /^(#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})|rgba?\([^)]*\))$/;
+// Tokens that aren't actually colours and shouldn't count toward layer count
+const NON_COLOURS = new Set([
+  "none",
+  "transparent",
+  "currentcolor",
+  "inherit",
+  "initial",
+  "unset",
+]);
 
 export type ValidateResult =
   | { ok: true }
@@ -137,7 +145,7 @@ function readAspectRatio(
 function countUniqueFills(text: string): number {
   const fills = new Set<string>();
 
-  // fill="..." attribute
+  // fill="..." attribute (permissive — filter inside normalise)
   const attrRe = /fill\s*=\s*["']([^"']+)["']/gi;
   let m: RegExpExecArray | null;
   while ((m = attrRe.exec(text))) {
@@ -146,7 +154,7 @@ function countUniqueFills(text: string): number {
   }
 
   // fill: <value> (inline style, <style> blocks, etc.)
-  const styleRe = /fill\s*:\s*([^;}\s]+)/gi;
+  const styleRe = /fill\s*:\s*([^;}\s"']+)/gi;
   while ((m = styleRe.exec(text))) {
     const v = normalise(m[1]);
     if (v) fills.add(v);
@@ -157,7 +165,8 @@ function countUniqueFills(text: string): number {
 
 function normalise(value: string): string | null {
   const v = value.trim().toLowerCase().replace(/[;,]$/g, "");
-  if (!HEX_OR_RGB.test(v)) return null;
+  if (!v || NON_COLOURS.has(v)) return null;
+  if (v.startsWith("url(") || v.startsWith("var(")) return null;
   if (v.startsWith("#") && v.length === 4) {
     return "#" + v.slice(1).split("").map((c) => c + c).join("");
   }

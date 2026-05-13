@@ -19,21 +19,33 @@ import re
 from typing import List
 
 
-# Matches: fill="#hex", fill='#hex', fill="rgb(…)", fill='rgb(…)'
+# Permissive matcher — captures any fill value, we filter inside _normalise.
+# Catches hex (#fff, #ffffff), rgb()/rgba(), hsl()/hsla(), and CSS named
+# colours like "black", "white", "coral", etc.
 _FILL_ATTR = re.compile(
-    r'fill\s*=\s*(?P<q>["\'])(?P<val>#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})|rgba?\([^)]*\))(?P=q)'
+    r'fill\s*=\s*(?P<q>["\'])(?P<val>[^"\']+)(?P=q)'
 )
 
-# Matches inline "fill: <value>" inside a style="..." attribute
+# Matches inline "fill: <value>" inside a style="..." attribute or <style> block.
 _STYLE_FILL = re.compile(
     r'(?P<prefix>fill\s*:\s*)'
-    r'(?P<val>#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})|rgba?\([^)]*\))'
+    r'(?P<val>[^;}\s"\']+)'
 )
 
+# Tokens that aren't actually colours and shouldn't count as fills.
+_NON_COLOURS = {"none", "transparent", "currentcolor", "inherit", "initial", "unset"}
 
-def _normalise(colour: str) -> str:
-    """Normalise hex colours so '#fff' and '#ffffff' are deduped together."""
-    c = colour.strip().lower()
+
+def _normalise(colour: str) -> str | None:
+    """
+    Normalise a fill value into a comparable form for deduplication.
+    Returns None if the value is not a real colour (none, gradient, etc.).
+    """
+    c = colour.strip().lower().rstrip(";,")
+    if not c or c in _NON_COLOURS:
+        return None
+    if c.startswith("url(") or c.startswith("var("):
+        return None
     if c.startswith("#") and len(c) == 4:
         # Expand #rgb to #rrggbb
         return "#" + "".join(ch * 2 for ch in c[1:])
@@ -47,9 +59,10 @@ def unique_fills(svg_text: str) -> list[str]:
 
     def _record(val: str) -> None:
         norm = _normalise(val)
-        if norm not in seen_set:
-            seen_set.add(norm)
-            seen.append(norm)
+        if norm is None or norm in seen_set:
+            return
+        seen_set.add(norm)
+        seen.append(norm)
 
     for m in _FILL_ATTR.finditer(svg_text):
         _record(m.group("val"))
@@ -87,20 +100,7 @@ def recolor_svg(svg_text: str, palette: List[str], allow_truncate: bool = False)
     if not palette:
         raise ValueError("Palette must contain at least one colour")
 
-    # First pass: collect unique colours in document order
-    seen: List[str] = []
-    seen_set = set()
-
-    def _record(val: str) -> None:
-        norm = _normalise(val)
-        if norm not in seen_set:
-            seen_set.add(norm)
-            seen.append(norm)
-
-    for m in _FILL_ATTR.finditer(svg_text):
-        _record(m.group("val"))
-    for m in _STYLE_FILL.finditer(svg_text):
-        _record(m.group("val"))
+    seen = unique_fills(svg_text)
 
     if not seen:
         raise ValueError(
@@ -117,16 +117,18 @@ def recolor_svg(svg_text: str, palette: List[str], allow_truncate: bool = False)
     # Build the mapping
     mapping = {seen[i]: palette[i] for i in range(min(len(seen), len(palette)))}
 
-    # Second pass: rewrite
+    # Second pass: rewrite (keep originals untouched if they aren't real colours)
     def _replace_attr(m: re.Match) -> str:
         norm = _normalise(m.group("val"))
-        new_val = mapping.get(norm, m.group("val"))
-        return f'fill={m.group("q")}{new_val}{m.group("q")}'
+        if norm is None or norm not in mapping:
+            return m.group(0)
+        return f'fill={m.group("q")}{mapping[norm]}{m.group("q")}'
 
     def _replace_style(m: re.Match) -> str:
         norm = _normalise(m.group("val"))
-        new_val = mapping.get(norm, m.group("val"))
-        return f'{m.group("prefix")}{new_val}'
+        if norm is None or norm not in mapping:
+            return m.group(0)
+        return f'{m.group("prefix")}{mapping[norm]}'
 
     out = _FILL_ATTR.sub(_replace_attr, svg_text)
     out = _STYLE_FILL.sub(_replace_style, out)
