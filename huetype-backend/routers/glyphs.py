@@ -1,6 +1,7 @@
 import io
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -165,6 +166,61 @@ def _next_codepoint(project_id: str) -> str:
     raise HTTPException(status_code=400, detail="No available codepoints in the private use area")
 
 
+def _normalise_codepoint(raw: str) -> str:
+    """Parse a user-supplied codepoint string and return canonical 4-char hex."""
+    try:
+        cp_int = int(raw.lstrip("U+").lstrip("u+"), 16)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid codepoint format. Use hex e.g. E001.",
+        )
+    if not (_PUA_START <= cp_int <= _PUA_END):
+        raise HTTPException(
+            status_code=422,
+            detail="Codepoint must be in the private use area (E001–F8FF).",
+        )
+    return format(cp_int, "04X")
+
+
+def _check_name_unique(
+    project_id: str, name: str, exclude_glyph_id: Optional[str] = None
+) -> None:
+    q = (
+        db.table("glyphs")
+        .select("id, name")
+        .eq("project_id", project_id)
+        .eq("name", name)
+    )
+    if exclude_glyph_id:
+        q = q.neq("id", exclude_glyph_id)
+    res = q.limit(1).execute()
+    if res.data:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Another glyph in this project already uses the name '{name}'.",
+        )
+
+
+def _check_codepoint_unique(
+    project_id: str, codepoint: str, exclude_glyph_id: Optional[str] = None
+) -> None:
+    q = (
+        db.table("glyphs")
+        .select("id, codepoint")
+        .eq("project_id", project_id)
+        .eq("codepoint", codepoint)
+    )
+    if exclude_glyph_id:
+        q = q.neq("id", exclude_glyph_id)
+    res = q.limit(1).execute()
+    if res.data:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Codepoint U+{codepoint} is already used by another glyph in this project.",
+        )
+
+
 @router.post("", status_code=201)
 async def upload_glyph(
     project_id: str,
@@ -237,17 +293,11 @@ async def upload_glyph(
     if not codepoint:
         codepoint = _next_codepoint(project_id)
     else:
-        # Validate user-supplied codepoint is in PUA
-        try:
-            cp_int = int(codepoint.lstrip("U+").lstrip("u+"), 16)
-        except ValueError:
-            raise HTTPException(status_code=422, detail="Invalid codepoint format. Use hex e.g. E001")
-        if not (_PUA_START <= cp_int <= _PUA_END):
-            raise HTTPException(
-                status_code=422,
-                detail=f"Codepoint must be in the private use area (E001–F8FF)",
-            )
-        codepoint = format(cp_int, "04X")
+        codepoint = _normalise_codepoint(codepoint)
+        _check_codepoint_unique(project_id, codepoint)
+
+    # Name uniqueness inside project
+    _check_name_unique(project_id, name)
 
     # Determine upload_order (append to end)
     order_res = (
@@ -307,7 +357,70 @@ def update_glyph(
 
     glyph_res = (
         db.table("glyphs")
-        .select("id")
+        .select("id, name, codepoint")
+        .eq("id", glyph_id)
+        .eq("project_id", project_id)
+        .eq("user_id", user_id)
+        .maybe_single()
+        .execute()
+    )
+    if glyph_res is None or not glyph_res.data:
+        raise HTTPException(status_code=404, detail="Glyph not found")
+    current = glyph_res.data
+
+    updates: dict = {}
+
+    if body.name is not None and body.name != current["name"]:
+        _check_name_unique(project_id, body.name, exclude_glyph_id=glyph_id)
+        updates["name"] = body.name
+
+    if body.codepoint is not None:
+        new_cp = _normalise_codepoint(body.codepoint)
+        if new_cp != current["codepoint"]:
+            _check_codepoint_unique(project_id, new_cp, exclude_glyph_id=glyph_id)
+            updates["codepoint"] = new_cp
+
+    if not updates:
+        # Nothing to change — just return the current row
+        full = (
+            db.table("glyphs")
+            .select("*")
+            .eq("id", glyph_id)
+            .single()
+            .execute()
+        )
+        return full.data
+
+    result = (
+        db.table("glyphs")
+        .update(updates)
+        .eq("id", glyph_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    # Mark project as draft since glyphs changed
+    db.table("projects").update(
+        {"updated_at": datetime.now(timezone.utc).isoformat(), "status": "draft"}
+    ).eq("id", project_id).execute()
+
+    return result.data[0]
+
+
+@router.put("/{glyph_id}/svg", status_code=200)
+async def replace_glyph_svg(
+    project_id: str,
+    glyph_id: str,
+    file: UploadFile = File(...),
+    user_id: str = Depends(verify_token),
+):
+    """Replaces the SVG for an existing glyph, re-running all upload validations."""
+    _assert_project_owner(project_id, user_id)
+    limits = get_tier_limits(user_id)
+
+    glyph_res = (
+        db.table("glyphs")
+        .select("id, svg_storage_path")
         .eq("id", glyph_id)
         .eq("project_id", project_id)
         .eq("user_id", user_id)
@@ -317,14 +430,66 @@ def update_glyph(
     if glyph_res is None or not glyph_res.data:
         raise HTTPException(status_code=404, detail="Glyph not found")
 
-    result = (
+    if not file.filename or not file.filename.lower().endswith(".svg"):
+        raise HTTPException(status_code=422, detail="Only SVG files are accepted")
+
+    svg_bytes = await file.read()
+    if len(svg_bytes) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="SVG file exceeds 2 MB limit")
+
+    try:
+        svg_text = svg_bytes.decode("utf-8")
+        root = ET.fromstring(svg_text)
+    except (UnicodeDecodeError, ET.ParseError):
+        raise HTTPException(
+            status_code=422,
+            detail="File is not a valid SVG — could not parse as XML.",
+        )
+
+    root_tag = root.tag.split("}")[-1].lower()
+    if root_tag != "svg":
+        raise HTTPException(
+            status_code=422,
+            detail="File is not a valid SVG — root element is not <svg>.",
+        )
+
+    _enforce_square(root)
+
+    font_type = _get_project_font_type(project_id, user_id)
+    layer_count = _validate_svg_for_font_type(svg_text, font_type)
+
+    if layer_count > limits["layers"]:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"This SVG has {layer_count} colour layers. "
+                f"Your plan supports up to {limits['layers']} layers."
+            ),
+        )
+
+    # Re-upload to the same storage path (upsert)
+    svg_path = glyph_res.data.get("svg_storage_path") or f"{user_id}/{project_id}/{glyph_id}.svg"
+    storage.upload_svg(svg_path, svg_bytes)
+
+    # Update the row (layer_count may have changed)
+    now = datetime.now(timezone.utc).isoformat()
+    db.table("glyphs").update(
+        {"layer_count": layer_count, "svg_storage_path": svg_path}
+    ).eq("id", glyph_id).execute()
+
+    # Mark project draft so it gets rebuilt
+    db.table("projects").update(
+        {"updated_at": now, "status": "draft"}
+    ).eq("id", project_id).execute()
+
+    full = (
         db.table("glyphs")
-        .update({"name": body.name})
+        .select("*")
         .eq("id", glyph_id)
-        .eq("user_id", user_id)
+        .single()
         .execute()
     )
-    return result.data[0]
+    return full.data
 
 
 @router.delete("/{glyph_id}", status_code=204)
