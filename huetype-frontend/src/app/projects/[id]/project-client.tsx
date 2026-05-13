@@ -8,6 +8,7 @@ import { api, type ProjectDetail, type Glyph, type FontJob } from "@/lib/api";
 import FontPreview from "@/components/font-preview";
 import Loader from "@/components/loader";
 import { validateSvgFile } from "@/lib/svg-validate";
+import { recolourSvg, svgToDataUrl } from "@/lib/svg-recolour";
 
 const PROJECT_FONT_FAMILY = "HueTypeProjectFont";
 
@@ -323,6 +324,13 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
                     key={g.id}
                     glyph={g}
                     fontFamily={fontReady ? PROJECT_FONT_FAMILY : null}
+                    lastBuildAt={
+                      project.latest_job?.status === "complete"
+                        ? project.latest_job.completed_at
+                        : null
+                    }
+                    fontType={project.font_type}
+                    palette={project.palette}
                     onDelete={handleDelete}
                     onRename={handleRename}
                   />
@@ -423,22 +431,73 @@ function Dropzone({
 function GlyphCard({
   glyph,
   fontFamily,
+  lastBuildAt,
+  fontType,
+  palette,
   onDelete,
   onRename,
 }: {
   glyph: Glyph;
   fontFamily: string | null;
+  lastBuildAt: string | null;
+  fontType: "illustration" | "duo" | "tri";
+  palette: string[];
   onDelete: (id: string) => void;
   onRename: (id: string, newName: string) => void | Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(glyph.name);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Keep draft in sync if parent reloads project data
   useEffect(() => {
     if (!editing) setDraft(glyph.name);
   }, [glyph.name, editing]);
+
+  // Decide if this glyph is in the most recent build
+  const isInCurrentBuild =
+    !!fontFamily &&
+    !!lastBuildAt &&
+    new Date(glyph.created_at).getTime() <= new Date(lastBuildAt).getTime();
+
+  // For duo/tri-tone projects we recolour the SVG client-side so the preview
+  // matches what the build will produce.
+  useEffect(() => {
+    if (isInCurrentBuild) {
+      setPreviewUrl(null);
+      return;
+    }
+    if (!glyph.svg_url) {
+      setPreviewUrl(null);
+      return;
+    }
+    if (fontType === "illustration" || palette.length === 0) {
+      setPreviewUrl(glyph.svg_url);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(glyph.svg_url!);
+        const text = await res.text();
+        if (cancelled) return;
+        setPreviewUrl(svgToDataUrl(recolourSvg(text, palette)));
+      } catch {
+        if (!cancelled) setPreviewUrl(glyph.svg_url ?? null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isInCurrentBuild,
+    glyph.svg_url,
+    fontType,
+    palette.join(","),
+  ]);
 
   function commit() {
     const next = draft.trim();
@@ -476,27 +535,35 @@ function GlyphCard({
         </button>
       </div>
 
-      {/* Rendered glyph from font, or raw SVG preview, or placeholder */}
-      <div className="h-14 w-full flex items-center justify-center mb-1.5">
-        {fontFamily ? (
+      {/* Glyph thumbnail:
+          - In current build → render from the font
+          - Else if SVG preview available → render SVG (recoloured for duo/tri)
+          - Else placeholder
+       */}
+      <div className="h-14 w-full flex items-center justify-center mb-1.5 relative">
+        {isInCurrentBuild ? (
           <span
-            style={{
-              fontFamily,
-              fontSize: "48px",
-              lineHeight: 1,
-            }}
+            style={{ fontFamily: fontFamily!, fontSize: "48px", lineHeight: 1 }}
           >
             {codepointChar}
           </span>
-        ) : glyph.svg_url ? (
+        ) : previewUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={glyph.svg_url}
+              src={previewUrl}
               alt={glyph.name}
               className="h-12 w-12 object-contain"
               loading="lazy"
             />
+            {fontFamily && (
+              <span
+                className="absolute top-0 right-0 text-[9px] text-yellow-400/90 px-1 rounded-sm"
+                title="This glyph isn't in the last build — rebuild to include it"
+              >
+                ●
+              </span>
+            )}
           </>
         ) : (
           <span className="text-[10px] text-text-muted leading-tight px-2 text-center">
@@ -669,7 +736,6 @@ function UnbuiltGlyphPreview({
   // For duo/tri-tone, fetch the SVG, recolour it client-side, and embed as data URL
   useEffect(() => {
     let cancelled = false;
-    let dataUrl: string | null = null;
 
     if (fontType === "illustration" || !glyph.svg_url || palette.length === 0) {
       setRecolouredUrl(null);
@@ -681,10 +747,7 @@ function UnbuiltGlyphPreview({
         const res = await fetch(glyph.svg_url!);
         const text = await res.text();
         if (cancelled) return;
-        const recoloured = recolourSvgInBrowser(text, palette);
-        dataUrl =
-          "data:image/svg+xml;utf8," + encodeURIComponent(recoloured);
-        setRecolouredUrl(dataUrl);
+        setRecolouredUrl(svgToDataUrl(recolourSvg(text, palette)));
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -734,46 +797,6 @@ function UnbuiltGlyphPreview({
       </span>
     </div>
   );
-}
-
-// Recolour fills in an SVG string against a palette. Mirrors the backend
-// algorithm closely enough for an accurate pre-build preview.
-function recolourSvgInBrowser(svg: string, palette: string[]): string {
-  if (palette.length === 0) return svg;
-  const fills: string[] = [];
-  const seen = new Set<string>();
-  const record = (val: string) => {
-    const n = normaliseColour(val);
-    if (n && !seen.has(n)) {
-      seen.add(n);
-      fills.push(n);
-    }
-  };
-
-  for (const m of svg.matchAll(/fill\s*=\s*["']([^"']+)["']/gi)) record(m[1]);
-  for (const m of svg.matchAll(/fill\s*:\s*([^;}\s]+)/gi)) record(m[1]);
-
-  const mapping = new Map<string, string>();
-  fills.slice(0, palette.length).forEach((src, i) => mapping.set(src, palette[i]));
-
-  return svg
-    .replace(/fill\s*=\s*(["'])([^"']+)\1/gi, (m, q, val) => {
-      const n = normaliseColour(val);
-      return n && mapping.has(n) ? `fill=${q}${mapping.get(n)}${q}` : m;
-    })
-    .replace(/fill\s*:\s*([^;}\s]+)/gi, (m, val) => {
-      const n = normaliseColour(val);
-      return n && mapping.has(n) ? `fill: ${mapping.get(n)}` : m;
-    });
-}
-
-function normaliseColour(value: string): string | null {
-  const v = value.trim().toLowerCase().replace(/[;,]$/g, "");
-  if (!/^(#(?:[0-9a-f]{3}|[0-9a-f]{6})|rgba?\([^)]*\))$/.test(v)) return null;
-  if (v.startsWith("#") && v.length === 4) {
-    return "#" + v.slice(1).split("").map((c) => c + c).join("");
-  }
-  return v;
 }
 
 function PaletteEditor({
