@@ -357,14 +357,14 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
                 longWaitLabel="Almost there — nanoemoji is rasterising glyphs and assembling the COLR table."
               />
             </div>
-          ) : (
+          ) : project.glyphs.length === 0 ? (
             <div className="card p-12 text-center">
               <p className="text-text-secondary text-sm">
-                {project.glyphs.length === 0
-                  ? "Upload some SVGs to get started"
-                  : "Build your font to preview it here"}
+                Upload some SVGs to get started
               </p>
             </div>
+          ) : (
+            <UnbuiltPreview project={project} />
           )}
         </section>
       </div>
@@ -599,6 +599,181 @@ function BuildPanel({
       )}
     </div>
   );
+}
+
+function UnbuiltPreview({ project }: { project: ProjectDetail }) {
+  const [size, setSize] = useState(96);
+
+  const noteText =
+    project.font_type === "duo" || project.font_type === "tri"
+      ? "Pre-build preview using your global palette. Hit Build to generate the actual font."
+      : "Pre-build preview from your SVG sources. Hit Build to render them as a real colour font.";
+
+  return (
+    <div className="card p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-xs uppercase tracking-wider text-text-secondary">
+            Sample preview
+          </h3>
+          <p className="text-[10px] text-text-muted mt-0.5">
+            Build the font to enable colour overrides, downloads, and text-drive
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-text-muted">Size</span>
+          <input
+            type="range"
+            min="40"
+            max="200"
+            value={size}
+            onChange={(e) => setSize(parseInt(e.target.value))}
+            className="w-24 accent-accent"
+          />
+        </div>
+      </div>
+
+      <div className="bg-bg rounded-lg p-8 flex flex-wrap gap-6 justify-center min-h-[200px] items-center">
+        {project.glyphs.map((g) => (
+          <UnbuiltGlyphPreview
+            key={g.id}
+            glyph={g}
+            size={size}
+            fontType={project.font_type}
+            palette={project.palette}
+          />
+        ))}
+      </div>
+
+      <p className="text-[11px] text-text-muted mt-4 leading-relaxed">
+        {noteText}
+      </p>
+    </div>
+  );
+}
+
+function UnbuiltGlyphPreview({
+  glyph,
+  size,
+  fontType,
+  palette,
+}: {
+  glyph: Glyph;
+  size: number;
+  fontType: "illustration" | "duo" | "tri";
+  palette: string[];
+}) {
+  const [recolouredUrl, setRecolouredUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  // For duo/tri-tone, fetch the SVG, recolour it client-side, and embed as data URL
+  useEffect(() => {
+    let cancelled = false;
+    let dataUrl: string | null = null;
+
+    if (fontType === "illustration" || !glyph.svg_url || palette.length === 0) {
+      setRecolouredUrl(null);
+      return;
+    }
+
+    (async () => {
+      try {
+        const res = await fetch(glyph.svg_url!);
+        const text = await res.text();
+        if (cancelled) return;
+        const recoloured = recolourSvgInBrowser(text, palette);
+        dataUrl =
+          "data:image/svg+xml;utf8," + encodeURIComponent(recoloured);
+        setRecolouredUrl(dataUrl);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [glyph.svg_url, fontType, palette.join(",")]);
+
+  const src =
+    fontType !== "illustration" && recolouredUrl ? recolouredUrl : glyph.svg_url;
+
+  if (failed || !src) {
+    return (
+      <div
+        className="flex flex-col items-center gap-1 text-text-muted"
+        style={{ width: size }}
+      >
+        <div
+          className="border border-dashed border-border rounded flex items-center justify-center text-[9px] text-text-muted text-center px-1"
+          style={{ width: size, height: size }}
+        >
+          Preview available after build
+        </div>
+        <span className="text-[10px] truncate w-full text-center">
+          {glyph.name}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={glyph.name}
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className="object-contain"
+        loading="lazy"
+      />
+      <span className="text-[10px] text-text-muted truncate" style={{ maxWidth: size }}>
+        {glyph.name}
+      </span>
+    </div>
+  );
+}
+
+// Recolour fills in an SVG string against a palette. Mirrors the backend
+// algorithm closely enough for an accurate pre-build preview.
+function recolourSvgInBrowser(svg: string, palette: string[]): string {
+  if (palette.length === 0) return svg;
+  const fills: string[] = [];
+  const seen = new Set<string>();
+  const record = (val: string) => {
+    const n = normaliseColour(val);
+    if (n && !seen.has(n)) {
+      seen.add(n);
+      fills.push(n);
+    }
+  };
+
+  for (const m of svg.matchAll(/fill\s*=\s*["']([^"']+)["']/gi)) record(m[1]);
+  for (const m of svg.matchAll(/fill\s*:\s*([^;}\s]+)/gi)) record(m[1]);
+
+  const mapping = new Map<string, string>();
+  fills.slice(0, palette.length).forEach((src, i) => mapping.set(src, palette[i]));
+
+  return svg
+    .replace(/fill\s*=\s*(["'])([^"']+)\1/gi, (m, q, val) => {
+      const n = normaliseColour(val);
+      return n && mapping.has(n) ? `fill=${q}${mapping.get(n)}${q}` : m;
+    })
+    .replace(/fill\s*:\s*([^;}\s]+)/gi, (m, val) => {
+      const n = normaliseColour(val);
+      return n && mapping.has(n) ? `fill: ${mapping.get(n)}` : m;
+    });
+}
+
+function normaliseColour(value: string): string | null {
+  const v = value.trim().toLowerCase().replace(/[;,]$/g, "");
+  if (!/^(#(?:[0-9a-f]{3}|[0-9a-f]{6})|rgba?\([^)]*\))$/.test(v)) return null;
+  if (v.startsWith("#") && v.length === 4) {
+    return "#" + v.slice(1).split("").map((c) => c + c).join("");
+  }
+  return v;
 }
 
 function PaletteEditor({
