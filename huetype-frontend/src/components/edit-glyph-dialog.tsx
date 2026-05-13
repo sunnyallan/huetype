@@ -134,6 +134,16 @@ export default function EditGlyphDialog({
         }
         await api.updateGlyph(projectId, glyph.id, body);
       }
+
+      // 3. Auto-trigger a rebuild so the preview matches the changes.
+      //    Don't let a build-trigger error block the close — the user can
+      //    rebuild manually if it fails.
+      try {
+        await api.createJob(projectId);
+      } catch (buildErr) {
+        console.warn("Auto-rebuild failed, user can retry manually:", buildErr);
+      }
+
       await onSaved();
       onClose();
     } catch (e: unknown) {
@@ -162,8 +172,8 @@ export default function EditGlyphDialog({
 
         <h2 className="text-base font-semibold mb-1">Edit glyph</h2>
         <p className="text-xs text-text-muted mb-5">
-          Rename, change the codepoint, or replace the SVG. Project will be
-          marked for rebuild.
+          Rename, change the codepoint, or replace the SVG. The font will
+          rebuild automatically after saving.
         </p>
 
         {/* Name */}
@@ -261,12 +271,14 @@ export default function EditGlyphDialog({
           <button
             onClick={save}
             disabled={!canSave}
-            className="btn-primary min-w-[88px]"
+            className="btn-primary min-w-[120px]"
           >
             {saving ? (
-              <Loader2 size={14} className="animate-spin" />
+              <>
+                <Loader2 size={14} className="animate-spin" /> Saving…
+              </>
             ) : (
-              "Save"
+              "Save & rebuild"
             )}
           </button>
         </div>
