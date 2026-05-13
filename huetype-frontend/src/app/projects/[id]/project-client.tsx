@@ -9,6 +9,7 @@ import FontPreview from "@/components/font-preview";
 import Loader from "@/components/loader";
 import { validateSvgFile } from "@/lib/svg-validate";
 import { recolourSvg, svgToDataUrl } from "@/lib/svg-recolour";
+import EditGlyphDialog from "@/components/edit-glyph-dialog";
 
 const PROJECT_FONT_FAMILY = "HueTypeProjectFont";
 
@@ -20,6 +21,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const [uploading, setUploading] = useState(false);
   const [building, setBuilding] = useState(false);
   const [editingName, setEditingName] = useState(false);
+  const [editingGlyphId, setEditingGlyphId] = useState<string | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [fontReady, setFontReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -148,7 +150,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
 
   async function handleRename(glyphId: string, newName: string) {
     try {
-      await api.updateGlyph(projectId, glyphId, newName);
+      await api.updateGlyph(projectId, glyphId, { name: newName });
       await load();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Rename failed");
@@ -333,6 +335,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
                     palette={project.palette}
                     onDelete={handleDelete}
                     onRename={handleRename}
+                    onEdit={() => setEditingGlyphId(g.id)}
                   />
                 ))}
               </div>
@@ -377,6 +380,22 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
         </section>
       </div>
       </div>
+
+      {editingGlyphId &&
+        (() => {
+          const g = project.glyphs.find((x) => x.id === editingGlyphId);
+          if (!g) return null;
+          return (
+            <EditGlyphDialog
+              projectId={projectId}
+              glyph={g}
+              siblings={project.glyphs}
+              fontType={project.font_type}
+              onClose={() => setEditingGlyphId(null)}
+              onSaved={load}
+            />
+          );
+        })()}
     </main>
   );
 }
@@ -436,6 +455,7 @@ function GlyphCard({
   palette,
   onDelete,
   onRename,
+  onEdit,
 }: {
   glyph: Glyph;
   fontFamily: string | null;
@@ -444,6 +464,7 @@ function GlyphCard({
   palette: string[];
   onDelete: (id: string) => void;
   onRename: (id: string, newName: string) => void | Promise<void>;
+  onEdit: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(glyph.name);
@@ -517,12 +538,9 @@ function GlyphCard({
       {/* Action buttons (hover) */}
       <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          onClick={() => {
-            setEditing(true);
-            setTimeout(() => inputRef.current?.select(), 0);
-          }}
+          onClick={onEdit}
           className="p-1 rounded hover:bg-bg text-text-secondary hover:text-text-primary"
-          title="Rename"
+          title="Edit glyph"
         >
           <Pencil size={11} />
         </button>

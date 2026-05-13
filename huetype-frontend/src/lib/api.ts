@@ -128,11 +128,24 @@ export const api = {
     });
   },
 
-  updateGlyph: (projectId: string, glyphId: string, name: string) =>
+  updateGlyph: (
+    projectId: string,
+    glyphId: string,
+    body: { name?: string; codepoint?: string },
+  ) =>
     apiFetch<Glyph>(`/projects/${projectId}/glyphs/${glyphId}`, {
       method: "PATCH",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
     }),
+
+  replaceGlyphSvg: (projectId: string, glyphId: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return apiFetch<Glyph>(`/projects/${projectId}/glyphs/${glyphId}/svg`, {
+      method: "PUT",
+      body: fd,
+    });
+  },
 
   deleteGlyph: (projectId: string, glyphId: string) =>
     apiFetch<void>(`/projects/${projectId}/glyphs/${glyphId}`, {
