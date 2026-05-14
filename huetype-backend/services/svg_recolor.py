@@ -16,7 +16,12 @@ the source colours.
 
 from __future__ import annotations
 import re
+import xml.etree.ElementTree as ET
 from typing import List
+
+
+_SVG_NS = "http://www.w3.org/2000/svg"
+_SHAPE_TAGS = {"path", "rect", "circle", "ellipse", "polygon", "polyline", "line"}
 
 
 # Permissive matcher — captures any fill value, we filter inside _normalise.
@@ -133,3 +138,56 @@ def recolor_svg(svg_text: str, palette: List[str], allow_truncate: bool = False)
     out = _FILL_ATTR.sub(_replace_attr, svg_text)
     out = _STYLE_FILL.sub(_replace_style, out)
     return out
+
+
+def recolor_svg_by_shape(svg_text: str, palette: List[str]) -> str:
+    """
+    Recolour an SVG by ASSIGNING EACH SHAPE to a palette slot in document order
+    (shape i → palette[i % len(palette)]). Two shapes with the same source
+    colour will receive different palette colours when their indexes differ.
+
+    This is the right strategy for duo/tri-tone fonts where every fillable
+    shape is meant to be an independent layer the user can tint.
+    """
+    if not palette:
+        raise ValueError("Palette must contain at least one colour")
+
+    # Register the default namespace so output stays clean
+    ET.register_namespace("", _SVG_NS)
+
+    try:
+        root = ET.fromstring(svg_text)
+    except ET.ParseError as exc:
+        raise ValueError(f"Invalid SVG: {exc}")
+
+    shape_idx = 0
+    for el in root.iter():
+        tag = el.tag.split("}")[-1].lower()
+        if tag not in _SHAPE_TAGS:
+            continue
+        new_fill = palette[shape_idx % len(palette)]
+        shape_idx += 1
+
+        # Strip any conflicting fill from the inline style attribute so the
+        # presentation attribute wins.
+        style = el.get("style")
+        if style:
+            cleaned = re.sub(r"fill\s*:\s*[^;]+;?", "", style).strip().rstrip(";")
+            if cleaned:
+                el.set("style", cleaned)
+            else:
+                el.attrib.pop("style", None)
+
+        el.set("fill", new_fill)
+        # Remove a CSS-class-based fill reference if the element had one;
+        # the inline fill attribute takes precedence anyway, but stripping the
+        # class avoids stale references in viewer tools.
+        if "class" in el.attrib:
+            el.attrib.pop("class")
+
+    if shape_idx == 0:
+        raise ValueError(
+            "SVG has no fillable shapes. Add at least one <path>/<circle>/<rect> etc."
+        )
+
+    return ET.tostring(root, encoding="unicode")

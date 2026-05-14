@@ -9,32 +9,54 @@
 
 export function recolourSvg(svg: string, palette: string[]): string {
   if (palette.length === 0) return svg;
+  // Use per-shape assignment to match the backend recolour for duo/tri-tone
+  return recolourSvgByShape(svg, palette);
+}
 
-  const fills: string[] = [];
-  const seen = new Set<string>();
-  const record = (val: string) => {
-    const n = normaliseColour(val);
-    if (n && !seen.has(n)) {
-      seen.add(n);
-      fills.push(n);
+const SHAPE_TAGS = new Set([
+  "path",
+  "rect",
+  "circle",
+  "ellipse",
+  "polygon",
+  "polyline",
+  "line",
+]);
+
+/**
+ * Per-shape recolour. Every fillable shape gets its own palette slot
+ * (shape i → palette[i % palette.length]), independent of source colour.
+ * Mirrors the backend's recolor_svg_by_shape behaviour.
+ */
+export function recolourSvgByShape(svg: string, palette: string[]): string {
+  if (palette.length === 0) return svg;
+
+  const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+  if (doc.querySelector("parsererror")) return svg;
+
+  const all = doc.getElementsByTagName("*");
+  let idx = 0;
+  for (let i = 0; i < all.length; i++) {
+    const el = all[i];
+    if (!SHAPE_TAGS.has(el.nodeName.toLowerCase())) continue;
+    const colour = palette[idx % palette.length];
+    idx += 1;
+
+    // Strip any conflicting fill from inline style so the attribute wins
+    const style = el.getAttribute("style");
+    if (style) {
+      const cleaned = style
+        .replace(/fill\s*:\s*[^;]+;?/gi, "")
+        .trim()
+        .replace(/;+$/, "");
+      if (cleaned) el.setAttribute("style", cleaned);
+      else el.removeAttribute("style");
     }
-  };
+    el.setAttribute("fill", colour);
+    el.removeAttribute("class");
+  }
 
-  for (const m of svg.matchAll(/fill\s*=\s*["']([^"']+)["']/gi)) record(m[1]);
-  for (const m of svg.matchAll(/fill\s*:\s*([^;}\s]+)/gi)) record(m[1]);
-
-  const mapping = new Map<string, string>();
-  fills.slice(0, palette.length).forEach((src, i) => mapping.set(src, palette[i]));
-
-  return svg
-    .replace(/fill\s*=\s*(["'])([^"']+)\1/gi, (m, q, val) => {
-      const n = normaliseColour(val);
-      return n && mapping.has(n) ? `fill=${q}${mapping.get(n)}${q}` : m;
-    })
-    .replace(/fill\s*:\s*([^;}\s]+)/gi, (m, val) => {
-      const n = normaliseColour(val);
-      return n && mapping.has(n) ? `fill: ${mapping.get(n)}` : m;
-    });
+  return new XMLSerializer().serializeToString(doc);
 }
 
 const NON_COLOURS = new Set([
