@@ -45,11 +45,33 @@ def _get_project_font_type(project_id: str, user_id: str) -> str:
     return res.data.get("font_type", "illustration")
 
 
-def _validate_svg_for_font_type(svg_text: str, font_type: str) -> int:
+_SHAPE_TAGS = {"path", "rect", "circle", "ellipse", "polygon", "polyline", "line"}
+
+
+def _count_shape_elements(root: ET.Element) -> int:
+    """Count fillable shape elements in an SVG (path, circle, rect, etc.)."""
+    count = 0
+    for el in root.iter():
+        tag = el.tag.split("}")[-1].lower()
+        if tag in _SHAPE_TAGS:
+            count += 1
+    return count
+
+
+def _validate_svg_for_font_type(
+    svg_text: str, font_type: str, root: ET.Element
+) -> int:
     """
     Validates an SVG against a project's font type.
-    Returns the layer count (number of unique fill colours).
-    Raises HTTPException(422) with a clear message on failure.
+
+    Rules:
+      - Solid fills only (no gradients/patterns)
+      - At least one fill colour
+      - Duo-tone: at most 2 distinct fill colours
+      - Tri-tone: at most 3 distinct fill colours
+      - Illustration: no colour limit
+
+    Returns the layer count (number of shape elements — paths, circles, etc.).
     """
     if has_unsupported_fills(svg_text):
         raise HTTPException(
@@ -60,10 +82,10 @@ def _validate_svg_for_font_type(svg_text: str, font_type: str) -> int:
             ),
         )
 
-    fills = unique_fills(svg_text)
-    layer_count = len(fills)
+    colour_count = len(unique_fills(svg_text))
+    shape_count = _count_shape_elements(root)
 
-    if layer_count == 0:
+    if colour_count == 0:
         raise HTTPException(
             status_code=422,
             detail=(
@@ -72,25 +94,27 @@ def _validate_svg_for_font_type(svg_text: str, font_type: str) -> int:
             ),
         )
 
-    if font_type == "duo" and layer_count != 2:
+    if font_type == "duo" and colour_count > 2:
         raise HTTPException(
             status_code=422,
             detail=(
-                f"Duo-tone projects need exactly 2 colour layers, but this SVG "
-                f"has {layer_count}. Adjust the SVG or switch the project type."
+                f"Duo-tone projects allow up to 2 distinct fill colours. This "
+                f"SVG uses {colour_count} ({shape_count} shapes). Reduce the "
+                f"palette or switch to tri-tone."
             ),
         )
 
-    if font_type == "tri" and layer_count != 3:
+    if font_type == "tri" and colour_count > 3:
         raise HTTPException(
             status_code=422,
             detail=(
-                f"Tri-tone projects need exactly 3 colour layers, but this SVG "
-                f"has {layer_count}. Adjust the SVG or switch the project type."
+                f"Tri-tone projects allow up to 3 distinct fill colours. This "
+                f"SVG uses {colour_count} ({shape_count} shapes). Reduce the "
+                f"palette or switch to illustration."
             ),
         )
 
-    return layer_count
+    return shape_count
 
 
 def _enforce_square(root: ET.Element) -> None:
@@ -276,7 +300,7 @@ async def upload_glyph(
 
     # Project-type-specific validation (also counts unique fills as layer_count)
     font_type = _get_project_font_type(project_id, user_id)
-    layer_count = _validate_svg_for_font_type(svg_text, font_type)
+    layer_count = _validate_svg_for_font_type(svg_text, font_type, root)
 
     # Plan limit on max layers
     if layer_count > limits["layers"]:
@@ -456,7 +480,7 @@ async def replace_glyph_svg(
     _enforce_square(root)
 
     font_type = _get_project_font_type(project_id, user_id)
-    layer_count = _validate_svg_for_font_type(svg_text, font_type)
+    layer_count = _validate_svg_for_font_type(svg_text, font_type, root)
 
     if layer_count > limits["layers"]:
         raise HTTPException(

@@ -85,8 +85,10 @@ export async function validateSvgFile(
   }
 
   // ── Fill count vs font type ────────────────────────────────────────────
-  const fillCount = countUniqueFills(text);
-  if (fillCount === 0) {
+  const colourCount = countUniqueFills(text);
+  const shapeCount = countShapeElements(doc);
+
+  if (colourCount === 0) {
     return {
       ok: false,
       error: `${file.name}: no solid fill colours found. Add fill='#…' to each shape.`,
@@ -101,20 +103,40 @@ export async function validateSvgFile(
     };
   }
 
-  if (fontType === "duo" && fillCount !== 2) {
+  if (fontType === "duo" && colourCount > 2) {
     return {
       ok: false,
-      error: `${file.name}: duo-tone projects need exactly 2 colour layers but this has ${fillCount}.`,
+      error: `${file.name}: duo-tone allows up to 2 distinct fill colours. This SVG uses ${colourCount} (${shapeCount} shapes).`,
     };
   }
-  if (fontType === "tri" && fillCount !== 3) {
+  if (fontType === "tri" && colourCount > 3) {
     return {
       ok: false,
-      error: `${file.name}: tri-tone projects need exactly 3 colour layers but this has ${fillCount}.`,
+      error: `${file.name}: tri-tone allows up to 3 distinct fill colours. This SVG uses ${colourCount} (${shapeCount} shapes).`,
     };
   }
 
   return { ok: true };
+}
+
+const SHAPE_TAGS = new Set([
+  "path",
+  "rect",
+  "circle",
+  "ellipse",
+  "polygon",
+  "polyline",
+  "line",
+]);
+
+function countShapeElements(doc: Document): number {
+  let count = 0;
+  const all = doc.documentElement?.getElementsByTagName("*");
+  if (!all) return 0;
+  for (let i = 0; i < all.length; i++) {
+    if (SHAPE_TAGS.has(all[i].nodeName.toLowerCase())) count++;
+  }
+  return count;
 }
 
 function readAspectRatio(
