@@ -142,19 +142,14 @@ def recolor_svg(svg_text: str, palette: List[str], allow_truncate: bool = False)
 
 def recolor_svg_by_shape(svg_text: str, palette: List[str]) -> str:
     """
-    Recolour an SVG by ASSIGNING EACH SHAPE to a palette slot in document order
+    Recolour by assigning EACH SHAPE to a palette slot in document order
     (shape i → palette[i % len(palette)]). Two shapes with the same source
-    colour will receive different palette colours when their indexes differ.
-
-    This is the right strategy for duo/tri-tone fonts where every fillable
-    shape is meant to be an independent layer the user can tint.
+    colour receive different palette colours when their indexes differ.
     """
     if not palette:
         raise ValueError("Palette must contain at least one colour")
 
-    # Register the default namespace so output stays clean
     ET.register_namespace("", _SVG_NS)
-
     try:
         root = ET.fromstring(svg_text)
     except ET.ParseError as exc:
@@ -167,23 +162,7 @@ def recolor_svg_by_shape(svg_text: str, palette: List[str]) -> str:
             continue
         new_fill = palette[shape_idx % len(palette)]
         shape_idx += 1
-
-        # Strip any conflicting fill from the inline style attribute so the
-        # presentation attribute wins.
-        style = el.get("style")
-        if style:
-            cleaned = re.sub(r"fill\s*:\s*[^;]+;?", "", style).strip().rstrip(";")
-            if cleaned:
-                el.set("style", cleaned)
-            else:
-                el.attrib.pop("style", None)
-
-        el.set("fill", new_fill)
-        # Remove a CSS-class-based fill reference if the element had one;
-        # the inline fill attribute takes precedence anyway, but stripping the
-        # class avoids stale references in viewer tools.
-        if "class" in el.attrib:
-            el.attrib.pop("class")
+        _force_fill(el, new_fill)
 
     if shape_idx == 0:
         raise ValueError(
@@ -191,3 +170,53 @@ def recolor_svg_by_shape(svg_text: str, palette: List[str]) -> str:
         )
 
     return ET.tostring(root, encoding="unicode")
+
+
+def recolor_svg_smart(svg_text: str, palette: List[str]) -> str:
+    """
+    Hybrid recolour that does the right thing automatically:
+
+      • If shape_count <= palette_size, each shape gets its own palette slot
+        (shape-based). Useful when the source SVG has fewer unique colours
+        than the palette but the user wants every shape to be distinct.
+
+      • If shape_count >  palette_size, shapes sharing a source colour share
+        a palette slot (colour-based). Prevents cycling palette colours back
+        to the start, which can cause two shapes to render in the same colour
+        and "vanish" into each other.
+    """
+    if not palette:
+        raise ValueError("Palette must contain at least one colour")
+
+    ET.register_namespace("", _SVG_NS)
+    try:
+        root = ET.fromstring(svg_text)
+    except ET.ParseError as exc:
+        raise ValueError(f"Invalid SVG: {exc}")
+
+    shape_count = sum(
+        1 for el in root.iter() if el.tag.split("}")[-1].lower() in _SHAPE_TAGS
+    )
+
+    if shape_count == 0:
+        raise ValueError(
+            "SVG has no fillable shapes. Add at least one <path>/<circle>/<rect> etc."
+        )
+
+    if shape_count <= len(palette):
+        return recolor_svg_by_shape(svg_text, palette)
+    return recolor_svg(svg_text, palette, allow_truncate=True)
+
+
+def _force_fill(el: ET.Element, new_fill: str) -> None:
+    """Set the fill attribute, stripping conflicting style/class fills."""
+    style = el.get("style")
+    if style:
+        cleaned = re.sub(r"fill\s*:\s*[^;]+;?", "", style).strip().rstrip(";")
+        if cleaned:
+            el.set("style", cleaned)
+        else:
+            el.attrib.pop("style", None)
+    el.set("fill", new_fill)
+    if "class" in el.attrib:
+        el.attrib.pop("class")

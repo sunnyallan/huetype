@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 from services.db import db
 from services import storage
-from services.svg_recolor import recolor_svg, recolor_svg_by_shape
+from services.svg_recolor import recolor_svg_smart
 
 
 async def run_font_job(job_id: str, project_id: str, user_id: str, color_format: str) -> None:
@@ -87,9 +87,10 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
             if font_type in ("duo", "tri"):
                 try:
                     svg_text = svg_bytes.decode("utf-8")
-                    # Per-shape assignment: every shape becomes an independent
-                    # layer tinted by the corresponding palette slot.
-                    recoloured = recolor_svg_by_shape(
+                    # Hybrid:
+                    #   shape count ≤ palette size → per-shape mapping
+                    #   shape count > palette size → per-source-colour mapping
+                    recoloured = recolor_svg_smart(
                         svg_text, palette[:required_slots]
                     )
                     local_path.write_text(recoloured, encoding="utf-8")

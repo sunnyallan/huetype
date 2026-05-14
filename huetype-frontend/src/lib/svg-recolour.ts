@@ -9,8 +9,50 @@
 
 export function recolourSvg(svg: string, palette: string[]): string {
   if (palette.length === 0) return svg;
-  // Use per-shape assignment to match the backend recolour for duo/tri-tone
-  return recolourSvgByShape(svg, palette);
+
+  // Hybrid: per-shape when shape_count ≤ palette size; per-source-colour
+  // otherwise. Mirrors backend recolor_svg_smart.
+  const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+  if (doc.querySelector("parsererror")) return svg;
+
+  const all = doc.getElementsByTagName("*");
+  let shapeCount = 0;
+  for (let i = 0; i < all.length; i++) {
+    if (SHAPE_TAGS.has(all[i].nodeName.toLowerCase())) shapeCount++;
+  }
+
+  if (shapeCount <= palette.length) {
+    return recolourSvgByShape(svg, palette);
+  }
+  return recolourSvgByColour(svg, palette);
+}
+
+function recolourSvgByColour(svg: string, palette: string[]): string {
+  const fills: string[] = [];
+  const seen = new Set<string>();
+  const record = (val: string) => {
+    const n = normaliseColour(val);
+    if (n && !seen.has(n)) {
+      seen.add(n);
+      fills.push(n);
+    }
+  };
+
+  for (const m of svg.matchAll(/fill\s*=\s*["']([^"']+)["']/gi)) record(m[1]);
+  for (const m of svg.matchAll(/fill\s*:\s*([^;}\s]+)/gi)) record(m[1]);
+
+  const mapping = new Map<string, string>();
+  fills.slice(0, palette.length).forEach((src, i) => mapping.set(src, palette[i]));
+
+  return svg
+    .replace(/fill\s*=\s*(["'])([^"']+)\1/gi, (m, q, val) => {
+      const n = normaliseColour(val);
+      return n && mapping.has(n) ? `fill=${q}${mapping.get(n)}${q}` : m;
+    })
+    .replace(/fill\s*:\s*([^;}\s]+)/gi, (m, val) => {
+      const n = normaliseColour(val);
+      return n && mapping.has(n) ? `fill: ${mapping.get(n)}` : m;
+    });
 }
 
 const SHAPE_TAGS = new Set([
