@@ -48,14 +48,44 @@ def _get_project_font_type(project_id: str, user_id: str) -> str:
 _SHAPE_TAGS = {"path", "rect", "circle", "ellipse", "polygon", "polyline", "line"}
 
 
-def _count_shape_elements(root: ET.Element) -> int:
-    """Count fillable shape elements in an SVG (path, circle, rect, etc.)."""
+def _count_layer_units(root: ET.Element) -> int:
+    """
+    Count 'layer units' in an SVG. A <g> group is one unit (all its inner
+    shapes share that unit). A standalone shape is one unit. Single-child
+    wrapper groups are unwrapped.
+    """
+    canvas = root
+    while True:
+        children = [
+            c for c in canvas
+            if c.tag.split("}")[-1].lower() in (_SHAPE_TAGS | {"g"})
+        ]
+        if len(children) == 1 and children[0].tag.split("}")[-1].lower() == "g":
+            canvas = children[0]
+            continue
+        break
+
     count = 0
-    for el in root.iter():
-        tag = el.tag.split("}")[-1].lower()
-        if tag in _SHAPE_TAGS:
+    for child in canvas:
+        tag = child.tag.split("}")[-1].lower()
+        if tag == "g":
+            if any(
+                el.tag.split("}")[-1].lower() in _SHAPE_TAGS
+                for el in child.iter()
+            ):
+                count += 1
+        elif tag in _SHAPE_TAGS:
             count += 1
     return count
+
+
+# Kept for backward compatibility — same body as layer-unit counting but
+# returns count of raw shape elements.
+def _count_shape_elements(root: ET.Element) -> int:
+    return sum(
+        1 for el in root.iter()
+        if el.tag.split("}")[-1].lower() in _SHAPE_TAGS
+    )
 
 
 def _validate_svg_for_font_type(
@@ -83,7 +113,9 @@ def _validate_svg_for_font_type(
         )
 
     colour_count = len(unique_fills(svg_text))
-    shape_count = _count_shape_elements(root)
+    # "Layer count" surfaced to the user is the number of layer units
+    # (groups + standalone shapes), so a group of paths reads as one layer.
+    shape_count = _count_layer_units(root)
 
     if colour_count == 0:
         raise HTTPException(

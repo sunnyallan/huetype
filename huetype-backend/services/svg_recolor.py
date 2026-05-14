@@ -174,16 +174,19 @@ def recolor_svg_by_shape(svg_text: str, palette: List[str]) -> str:
 
 def recolor_svg_smart(svg_text: str, palette: List[str]) -> str:
     """
-    Hybrid recolour that does the right thing automatically:
+    Group-aware recolour:
 
-      • If shape_count <= palette_size, each shape gets its own palette slot
-        (shape-based). Useful when the source SVG has fewer unique colours
-        than the palette but the user wants every shape to be distinct.
-
-      • If shape_count >  palette_size, shapes sharing a source colour share
-        a palette slot (colour-based). Prevents cycling palette colours back
-        to the start, which can cause two shapes to render in the same colour
-        and "vanish" into each other.
+      1. A "layer unit" is either a top-level <g> (with all shapes inside,
+         recursively, sharing one palette slot) or a standalone shape that
+         isn't wrapped in a group.
+      2. Wrapper groups that contain only a single child group (typical of
+         Figma exports like <g id="Layer_1">) are skipped over so the user's
+         intended layers are detected.
+      3. If layer_unit_count <= palette_size, each unit gets its own slot
+         (shape/group-based mapping).
+      4. If layer_unit_count >  palette_size, fall back to colour-based
+         mapping so shapes sharing a source colour stay together — prevents
+         cycling palette colours back to the start.
     """
     if not palette:
         raise ValueError("Palette must contain at least one colour")
@@ -194,18 +197,67 @@ def recolor_svg_smart(svg_text: str, palette: List[str]) -> str:
     except ET.ParseError as exc:
         raise ValueError(f"Invalid SVG: {exc}")
 
-    shape_count = sum(
-        1 for el in root.iter() if el.tag.split("}")[-1].lower() in _SHAPE_TAGS
-    )
+    canvas = _find_canvas(root)
+    units = _collect_layer_units(canvas)
 
-    if shape_count == 0:
+    if not units:
         raise ValueError(
             "SVG has no fillable shapes. Add at least one <path>/<circle>/<rect> etc."
         )
 
-    if shape_count <= len(palette):
-        return recolor_svg_by_shape(svg_text, palette)
+    if len(units) <= len(palette):
+        # Group-aware per-unit mapping: every standalone shape and every
+        # explicit group gets its own palette slot.
+        for i, shapes in enumerate(units):
+            colour = palette[i % len(palette)]
+            for el in shapes:
+                _force_fill(el, colour)
+        return ET.tostring(root, encoding="unicode")
+
+    # More units than palette slots — fall back to colour-based mapping
+    # via the regex pipeline so existing rules (style attributes, named
+    # colours, etc.) keep working.
     return recolor_svg(svg_text, palette, allow_truncate=True)
+
+
+def _find_canvas(root: ET.Element) -> ET.Element:
+    """
+    Unwrap purely-cosmetic single-child group wrappers (Figma exports often
+    wrap everything in <g id='Layer_1'>). Returns the element whose direct
+    children we should enumerate as layer units.
+    """
+    el = root
+    while True:
+        children = [
+            c for c in el
+            if c.tag.split("}")[-1].lower() in (_SHAPE_TAGS | {"g"})
+        ]
+        if len(children) == 1 and children[0].tag.split("}")[-1].lower() == "g":
+            el = children[0]
+            continue
+        return el
+
+
+def _collect_layer_units(canvas: ET.Element) -> List[List[ET.Element]]:
+    """
+    Each child of the canvas becomes one layer unit:
+      - <g> child → all shapes anywhere inside it (one list)
+      - shape child → just that shape (one-element list)
+      - anything else (defs, title…) → ignored
+    """
+    units: List[List[ET.Element]] = []
+    for child in canvas:
+        tag = child.tag.split("}")[-1].lower()
+        if tag == "g":
+            inside = [
+                el for el in child.iter()
+                if el.tag.split("}")[-1].lower() in _SHAPE_TAGS
+            ]
+            if inside:
+                units.append(inside)
+        elif tag in _SHAPE_TAGS:
+            units.append([child])
+    return units
 
 
 def _force_fill(el: ET.Element, new_fill: str) -> None:

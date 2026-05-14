@@ -10,21 +10,76 @@
 export function recolourSvg(svg: string, palette: string[]): string {
   if (palette.length === 0) return svg;
 
-  // Hybrid: per-shape when shape_count ≤ palette size; per-source-colour
-  // otherwise. Mirrors backend recolor_svg_smart.
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
   if (doc.querySelector("parsererror")) return svg;
 
-  const all = doc.getElementsByTagName("*");
-  let shapeCount = 0;
-  for (let i = 0; i < all.length; i++) {
-    if (SHAPE_TAGS.has(all[i].nodeName.toLowerCase())) shapeCount++;
+  const root = doc.documentElement;
+  if (!root) return svg;
+
+  const canvas = findCanvas(root);
+  const units = collectLayerUnits(canvas);
+  if (units.length === 0) return svg;
+
+  if (units.length <= palette.length) {
+    // Each <g> or standalone shape gets its own palette slot
+    units.forEach((shapes, i) => {
+      const colour = palette[i % palette.length];
+      shapes.forEach((el) => forceFill(el, colour));
+    });
+    return new XMLSerializer().serializeToString(doc);
   }
 
-  if (shapeCount <= palette.length) {
-    return recolourSvgByShape(svg, palette);
-  }
+  // More units than palette slots → group by source colour
   return recolourSvgByColour(svg, palette);
+}
+
+function findCanvas(el: Element): Element {
+  // Skip Figma-style single-child wrapper groups
+  while (true) {
+    const children = Array.from(el.children).filter((c) => {
+      const t = c.nodeName.toLowerCase();
+      return SHAPE_TAGS.has(t) || t === "g";
+    });
+    if (children.length === 1 && children[0].nodeName.toLowerCase() === "g") {
+      el = children[0];
+      continue;
+    }
+    return el;
+  }
+}
+
+function collectLayerUnits(canvas: Element): Element[][] {
+  const units: Element[][] = [];
+  for (const child of Array.from(canvas.children)) {
+    const tag = child.nodeName.toLowerCase();
+    if (tag === "g") {
+      const inside: Element[] = [];
+      const all = child.getElementsByTagName("*");
+      for (let i = 0; i < all.length; i++) {
+        if (SHAPE_TAGS.has(all[i].nodeName.toLowerCase())) {
+          inside.push(all[i]);
+        }
+      }
+      if (inside.length > 0) units.push(inside);
+    } else if (SHAPE_TAGS.has(tag)) {
+      units.push([child]);
+    }
+  }
+  return units;
+}
+
+function forceFill(el: Element, colour: string): void {
+  const style = el.getAttribute("style");
+  if (style) {
+    const cleaned = style
+      .replace(/fill\s*:\s*[^;]+;?/gi, "")
+      .trim()
+      .replace(/;+$/, "");
+    if (cleaned) el.setAttribute("style", cleaned);
+    else el.removeAttribute("style");
+  }
+  el.setAttribute("fill", colour);
+  el.removeAttribute("class");
 }
 
 function recolourSvgByColour(svg: string, palette: string[]): string {
