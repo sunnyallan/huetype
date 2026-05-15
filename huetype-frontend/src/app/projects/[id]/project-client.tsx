@@ -42,7 +42,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const [editingGlyphId, setEditingGlyphId] = useState<string | null>(null);
 
   // Project-level edit state (right panel — no glyph selected)
-  const [previewSize, setPreviewSize] = useState(96);
+  const [previewSize, setPreviewSize] = useState(40);
   const [previewBg, setPreviewBg] = useState("#ffffff");
   const [globalPalette, setGlobalPalette] = useState<string[]>([]);
 
@@ -659,8 +659,14 @@ function ProjectEditPanel({
           max={200}
           value={previewSize}
           onChange={(e) => onSizeChange(parseInt(e.target.value))}
-          className="w-full h-8 rounded-full cursor-pointer appearance-none"
-          style={{ accentColor: "#eefa94" }}
+          className="ht-size-slider w-full"
+          style={{
+            background: `linear-gradient(to right,
+              #eefa94 0%,
+              #eefa94 ${((previewSize - 40) / 160) * 100}%,
+              #dce2de ${((previewSize - 40) / 160) * 100}%,
+              #dce2de 100%)`,
+          }}
         />
       </div>
 

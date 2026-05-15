@@ -44,6 +44,36 @@
   override-colors: 0 #ffffff, 1 #c8c8c8, 2 #eefa94;
 }
 
+/* ── Size slider ──────────────────────────────────────────────────────────── */
+.ht-size-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 32px;
+  border-radius: 100px;
+  outline: none;
+  cursor: pointer;
+}
+.ht-size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.ht-size-slider::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
 @layer base {
   html, body {
     @apply bg-bg text-text-primary;
