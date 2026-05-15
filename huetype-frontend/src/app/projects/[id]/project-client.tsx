@@ -822,6 +822,8 @@ function ProjectEditPanel({
 }) {
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [saveHovered, setSaveHovered] = useState(false);
+  const [dlHovered, setDlHovered] = useState(false);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -917,6 +919,8 @@ function ProjectEditPanel({
         <button
           onClick={onSaveAndBuild}
           disabled={building || glyphCount === 0}
+          onMouseEnter={() => setSaveHovered(true)}
+          onMouseLeave={() => setSaveHovered(false)}
           className="flex-1 ht-btn bg-ht-white border border-ht-line text-ht-ink py-4 hover:border-ht-ink transition-colors duration-200 ease-in-out disabled:opacity-40"
         >
           {building ? (
@@ -926,7 +930,13 @@ function ProjectEditPanel({
             </>
           ) : (
             <>
-              <HueIcon glyph="add" size={16} palette="ref" />
+              {/* Icon crossfade: ref at rest → close-hover on hover */}
+              <span style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+                <HueIcon glyph="add" size={16} palette="ref"
+                  style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: saveHovered ? 0 : 1 }} />
+                <HueIcon glyph="add" size={16} palette="close-hover"
+                  style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: saveHovered ? 1 : 0 }} />
+              </span>
               Save
             </>
           )}
@@ -937,9 +947,22 @@ function ProjectEditPanel({
           <button
             onClick={() => setShowDownloadMenu((v) => !v)}
             disabled={!isReady}
-            className="ht-btn bg-ht-ink text-ht-white py-4 px-5 hover:opacity-90 transition-opacity disabled:opacity-40 gap-2"
+            onMouseEnter={() => setDlHovered(true)}
+            onMouseLeave={() => setDlHovered(false)}
+            className={[
+              "ht-btn py-4 px-5 border transition-all duration-300 ease-in-out disabled:opacity-40 gap-2",
+              dlHovered
+                ? "bg-[#f7f8f8] text-ht-ink border-ht-ink"
+                : "bg-ht-ink text-ht-white border-transparent",
+            ].join(" ")}
           >
-            <HueIcon glyph="download" size={16} palette="light-lime" />
+            {/* Icon crossfade: light-lime at rest → brand on hover */}
+            <span style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+              <HueIcon glyph="download" size={16} palette="light-lime"
+                style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: dlHovered ? 0 : 1 }} />
+              <HueIcon glyph="download" size={16} palette="brand"
+                style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: dlHovered ? 1 : 0 }} />
+            </span>
             Download
             <ChevronDown size={14} className={`transition-transform duration-200 ${showDownloadMenu ? "rotate-180" : ""}`} />
           </button>
