@@ -72,6 +72,69 @@ function replaceSvgColour(svg: string, from: string, to: string): string {
   return svg.replace(new RegExp(`fill="${from}"`, "gi"), `fill="${to}"`);
 }
 
+// ─── Size slider ─────────────────────────────────────────────────────────────
+//
+// Layered slider so the lime fill is a real pill (rounded right edge) and the
+// ring thumb sits *exactly* at the fill's right edge. The native input is
+// invisible on top — it handles drag, click-to-jump, and keyboard nav.
+//
+// Geometry: thumb centre is inset by half its width on both ends so the
+// thumb never hangs off the rounded track. The lime fill width = thumb
+// centre position, so the two always align (no parallax).
+
+const SLIDER_TRACK_H = 52; // px
+const SLIDER_THUMB = 44; // px
+
+function SizeSlider({
+  min,
+  max,
+  value,
+  onChange,
+}: {
+  min: number;
+  max: number;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const pct = ((value - min) / (max - min)) * 100; // 0..100
+  // Thumb-centre position, accounting for thumb width:
+  //   at pct = 0   → 22px from left  (thumb fully inside)
+  //   at pct = 100 → 100% − 22px     (thumb fully inside)
+  const centre = `calc(${pct / 100} * (100% - ${SLIDER_THUMB}px) + ${SLIDER_THUMB / 2}px)`;
+
+  return (
+    <div className="relative w-full" style={{ height: SLIDER_TRACK_H }}>
+      {/* Grey track */}
+      <div className="absolute inset-0 rounded-full bg-[#dce2de]" />
+      {/* Lime fill — fully rounded so the right edge is a half-pill */}
+      <div
+        className="absolute left-0 top-0 bottom-0 rounded-full bg-[#eefa94]"
+        style={{ width: centre }}
+      />
+      {/* Ring thumb — transparent centre so the gradient shows through */}
+      <div
+        className="absolute top-1/2 rounded-full border-[4px] border-white pointer-events-none"
+        style={{
+          width: SLIDER_THUMB,
+          height: SLIDER_THUMB,
+          left: centre,
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+      {/* Invisible native input — handles all interaction & a11y */}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value))}
+        aria-label="Preview size"
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+    </div>
+  );
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function ProjectClient({ projectId }: { projectId: string }) {
@@ -746,20 +809,11 @@ function ProjectEditPanel({
           <span className="text-sm text-ht-ink">Size</span>
           <span className="text-sm text-ht-ink/60">{previewSize}px</span>
         </div>
-        <input
-          type="range"
+        <SizeSlider
           min={40}
           max={200}
           value={previewSize}
-          onChange={(e) => onSizeChange(parseInt(e.target.value))}
-          className="ht-size-slider w-full"
-          style={{
-            background: `linear-gradient(to right,
-              #eefa94 0%,
-              #eefa94 ${((previewSize - 40) / 160) * 100}%,
-              #dce2de ${((previewSize - 40) / 160) * 100}%,
-              #dce2de 100%)`,
-          }}
+          onChange={onSizeChange}
         />
       </div>
 
