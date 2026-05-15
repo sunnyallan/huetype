@@ -529,7 +529,7 @@ function GlyphCard({
   }, [isInCurrentBuild, glyph.svg_url, fontType, palette.join(",")]);
 
   const codepointChar = String.fromCodePoint(parseInt(glyph.codepoint, 16));
-  const clampedSize = Math.min(iconSize, 72); // clamp for card display
+  const clampedSize = Math.min(iconSize, 56); // clamp to fit inside 96px card
 
   return (
     <button
@@ -537,17 +537,18 @@ function GlyphCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={[
-        "relative flex flex-col items-center gap-1.5 p-2 rounded-ht-lg text-center",
+        "relative flex flex-col items-center justify-between p-2 rounded-ht-lg text-center",
+        "w-24 h-24 shrink-0", // 96×96
         "border transition-colors duration-200 ease-in-out",
         isEditing
           ? "bg-ht-lime border-ht-ink"
-          : "bg-ht-surface border-transparent hover:border-ht-line",
+          : "bg-[#f7f8f8] border-transparent hover:border-ht-line",
       ].join(" ")}
     >
-      {/* Icon area */}
+      {/* Icon — fills available space above the label row */}
       <div
-        className="w-full rounded-ht-md flex items-center justify-center overflow-hidden"
-        style={{ height: 72, background: isEditing ? "transparent" : previewBg }}
+        className="flex-1 w-full flex items-center justify-center overflow-hidden"
+        style={{ background: "transparent" }}
       >
         {isInCurrentBuild ? (
           <span style={{ fontFamily: fontFamily!, fontSize: clampedSize, lineHeight: 1 }}>
@@ -563,35 +564,37 @@ function GlyphCard({
             loading="lazy"
           />
         ) : (
-          <span className="text-[9px] text-ht-ink/40 leading-tight px-1 text-center">
+          <span className="text-[8px] text-ht-ink/40 leading-tight px-1 text-center">
             Build to preview
           </span>
         )}
+      </div>
+
+      {/* Name + codepoint */}
+      <div className="w-full">
+        <p className="text-[9px] font-medium text-ht-ink truncate w-full leading-tight">
+          {glyph.name}
+        </p>
+        <p className="text-[8px] text-ht-ink/50 font-mono leading-tight">
+          {glyph.codepoint.toUpperCase()}
+        </p>
       </div>
 
       {/* Hover / editing overlay label */}
       {(hovered || isEditing) && (
         <div
           className={[
-            "absolute top-1.5 left-1/2 -translate-x-1/2",
-            "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
+            "absolute top-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap",
+            "flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium",
             isEditing
               ? "bg-ht-ink text-ht-white"
               : "bg-ht-white text-ht-ink shadow-ht-soft border border-ht-line",
           ].join(" ")}
         >
-          <Pencil size={9} />
+          <Pencil size={8} />
           {isEditing ? "Editing" : "Edit"}
         </div>
       )}
-
-      {/* Name + codepoint */}
-      <p className="text-[10px] font-medium text-ht-ink truncate w-full">
-        {glyph.name}
-      </p>
-      <p className="text-[9px] text-ht-ink/50 font-mono">
-        {glyph.codepoint.toUpperCase()}
-      </p>
     </button>
   );
 }
