@@ -92,10 +92,6 @@ function IconHoverBtn({
   "aria-label"?: string;
 }) {
   const [hovered, setHovered] = useState(false);
-  const base: React.CSSProperties = {
-    position: "absolute",
-    transition: "opacity 300ms ease-in-out",
-  };
   return (
     <button
       onClick={onClick}
@@ -103,10 +99,14 @@ function IconHoverBtn({
       onMouseLeave={() => setHovered(false)}
       aria-label={ariaLabel}
       className={className}
-      style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: size, height: size }}
     >
-      <HueIcon glyph={glyph} size={size} palette={restPalette} style={{ ...base, opacity: hovered ? 0 : 1 }} />
-      <HueIcon glyph={glyph} size={size} palette={hoverPalette} style={{ ...base, opacity: hovered ? 1 : 0 }} />
+      {/* Wrapper sized to icon — both icons absolute inside it */}
+      <span style={{ position: "relative", display: "inline-flex", width: size, height: size, flexShrink: 0 }}>
+        <HueIcon glyph={glyph} size={size} palette={restPalette}
+          style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: hovered ? 0 : 1 }} />
+        <HueIcon glyph={glyph} size={size} palette={hoverPalette}
+          style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: hovered ? 1 : 0 }} />
+      </span>
     </button>
   );
 }
@@ -732,16 +732,12 @@ function GlyphCard({
         "relative flex flex-col items-center justify-between p-2 rounded-ht-lg text-center",
         "w-24 h-24 shrink-0", // 96×96
         "border transition-colors duration-200 ease-in-out",
-        isEditing
-          ? "bg-ht-lime border-ht-ink"
-          : "bg-[#f7f8f8] border-transparent hover:border-ht-line",
+        isEditing ? "border-ht-ink" : "border-transparent hover:border-ht-line",
       ].join(" ")}
+      style={{ backgroundColor: isEditing ? "#eefa94" : previewBg }}
     >
       {/* Icon — fills available space above the label row */}
-      <div
-        className="flex-1 w-full flex items-center justify-center overflow-hidden rounded-md"
-        style={{ background: previewBg }}
-      >
+      <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
         {useBuiltFont ? (
           <span style={{ fontFamily: fontFamily!, fontSize: clampedSize, lineHeight: 1 }}>
             {codepointChar}
