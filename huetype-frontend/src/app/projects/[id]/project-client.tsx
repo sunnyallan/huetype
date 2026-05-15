@@ -10,7 +10,16 @@ import { HueIcon } from "@/components/hue-icon";
 import { validateSvgFile } from "@/lib/svg-validate";
 import { recolourSvg, svgToDataUrl } from "@/lib/svg-recolour";
 
-const PROJECT_FONT_FAMILY = "HueTypeProjectFont";
+const PROJECT_FONT_FAMILY_BASE = "HueTypeProjectFont";
+
+/** Cheap dirty check for palette arrays */
+function palettesEqual(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].toLowerCase() !== b[i].toLowerCase()) return false;
+  }
+  return true;
+}
 
 // ─── SVG colour utilities ────────────────────────────────────────────────────
 
@@ -38,8 +47,11 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [building, setBuilding] = useState(false);
-  const [fontReady, setFontReady] = useState(false);
+  const [currentFontFamily, setCurrentFontFamily] = useState<string | null>(null);
   const [editingGlyphId, setEditingGlyphId] = useState<string | null>(null);
+  // Live preview of the SVG being colour-edited in the right panel
+  // (illustration only — duo/tri previews are driven by globalPalette).
+  const [editingPreviewSvg, setEditingPreviewSvg] = useState<string | null>(null);
 
   // Project-level edit state (right panel — no glyph selected)
   const [previewSize, setPreviewSize] = useState(40);
@@ -82,37 +94,47 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     }
   }, [project?.latest_job?.status, load, project?.latest_job]);
 
-  // Register built font for glyph-card rendering
+  // Register built font for glyph-card rendering.
+  //
+  // Uses the FontFace API with a per-build unique family name. This means:
+  //   • the old font stays rendered until the new build is fully parsed,
+  //     so there is no swap flash on rebuild;
+  //   • we never tear down on cleanup — the font stays registered for the
+  //     life of the document and is cheap to look up next time.
   const lastJobId = project?.latest_job?.id;
   const isLatestComplete = project?.latest_job?.status === "complete";
   useEffect(() => {
-    if (!isLatestComplete || !lastJobId) {
-      setFontReady(false);
+    if (!isLatestComplete || !lastJobId) return;
+    const family = `${PROJECT_FONT_FAMILY_BASE}-${lastJobId.slice(0, 8)}`;
+
+    // Already loaded? swap immediately.
+    let exists = false;
+    document.fonts.forEach((f) => {
+      if (f.family === family && f.status === "loaded") exists = true;
+    });
+    if (exists) {
+      setCurrentFontFamily(family);
       return;
     }
+
     let cancelled = false;
-    let blobUrl: string | null = null;
-    let styleEl: HTMLStyleElement | null = null;
     (async () => {
       try {
         const { url } = await api.getDownloadUrl(projectId, lastJobId, "ttf");
         const res = await fetch(url);
         const buf = await res.arrayBuffer();
         if (cancelled) return;
-        blobUrl = URL.createObjectURL(new Blob([buf], { type: "font/ttf" }));
-        styleEl = document.createElement("style");
-        styleEl.textContent = `@font-face { font-family: "${PROJECT_FONT_FAMILY}"; src: url("${blobUrl}") format("truetype"); font-display: block; }`;
-        document.head.appendChild(styleEl);
-        setFontReady(true);
+        const face = new FontFace(family, buf);
+        await face.load();
+        if (cancelled) return;
+        document.fonts.add(face);
+        setCurrentFontFamily(family);
       } catch {
-        setFontReady(false);
+        /* leave previous font in place */
       }
     })();
     return () => {
       cancelled = true;
-      setFontReady(false);
-      if (styleEl?.parentNode) styleEl.parentNode.removeChild(styleEl);
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
   }, [projectId, lastJobId, isLatestComplete]);
 
@@ -230,6 +252,11 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const editingGlyph = editingGlyphId
     ? (project.glyphs.find((g) => g.id === editingGlyphId) ?? null)
     : null;
+  // Dirty when the user has tweaked the right-panel palette but not yet saved.
+  // Tells GlyphCards to fall back to SVG preview so the new colours show live.
+  const paletteDirty =
+    project.font_type !== "illustration" &&
+    !palettesEqual(globalPalette, project.palette);
 
   return (
     <main className="ht-app min-h-screen flex flex-col">
@@ -345,10 +372,14 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
                   <GlyphCard
                     key={g.id}
                     glyph={g}
-                    fontFamily={fontReady ? PROJECT_FONT_FAMILY : null}
+                    fontFamily={currentFontFamily}
                     lastBuildAt={isReady ? (job?.completed_at ?? null) : null}
                     fontType={project.font_type}
                     palette={globalPalette}
+                    paletteDirty={paletteDirty}
+                    livePreviewSvg={
+                      g.id === editingGlyphId ? editingPreviewSvg : null
+                    }
                     isEditing={g.id === editingGlyphId}
                     iconSize={previewSize}
                     previewBg={previewBg}
@@ -382,19 +413,27 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
               siblings={project.glyphs}
               fontType={project.font_type}
               globalPalette={globalPalette}
-              fontFamily={fontReady ? PROJECT_FONT_FAMILY : null}
+              fontFamily={currentFontFamily}
               previewBg={previewBg}
-              onClose={() => setEditingGlyphId(null)}
-              onSaved={async () => {
-                await load();
+              onClose={() => {
+                setEditingPreviewSvg(null);
                 setEditingGlyphId(null);
               }}
-              onDeleted={async () => {
-                await load();
+              onSaved={async () => {
+                setEditingPreviewSvg(null);
                 setEditingGlyphId(null);
+                await load();
+                router.refresh();
+              }}
+              onDeleted={async () => {
+                setEditingPreviewSvg(null);
+                setEditingGlyphId(null);
+                await load();
+                router.refresh();
               }}
               onBuild={build}
               onPaletteChange={setGlobalPalette}
+              onLivePreviewChange={setEditingPreviewSvg}
             />
           ) : (
             <ProjectEditPanel
@@ -483,6 +522,8 @@ function GlyphCard({
   lastBuildAt,
   fontType,
   palette,
+  paletteDirty,
+  livePreviewSvg,
   isEditing,
   iconSize,
   previewBg,
@@ -493,6 +534,8 @@ function GlyphCard({
   lastBuildAt: string | null;
   fontType: FontType;
   palette: string[];
+  paletteDirty: boolean;
+  livePreviewSvg: string | null;
   isEditing: boolean;
   iconSize: number;
   previewBg: string;
@@ -506,9 +549,22 @@ function GlyphCard({
     !!lastBuildAt &&
     new Date(glyph.created_at).getTime() <= new Date(lastBuildAt).getTime();
 
-  // Recolour SVG preview for duo/tri before build
+  // Show SVG (live-preview) path when:
+  //   • duo/tri palette has unsaved edits, OR
+  //   • this is the icon being edited and the right panel pushed an SVG up.
+  // Otherwise prefer the built font for crisp rendering.
+  const forceLivePreview = paletteDirty || !!livePreviewSvg;
+  const useBuiltFont = isInCurrentBuild && !forceLivePreview;
+
+  // Recolour / fetch SVG preview for the non-built-font path
   useEffect(() => {
-    if (isInCurrentBuild) { setPreviewUrl(null); return; }
+    if (useBuiltFont) { setPreviewUrl(null); return; }
+
+    // Illustration with a live edit pushed from the right panel
+    if (livePreviewSvg) {
+      setPreviewUrl(svgToDataUrl(livePreviewSvg));
+      return;
+    }
     if (!glyph.svg_url) { setPreviewUrl(null); return; }
     if (fontType === "illustration" || palette.length === 0) {
       setPreviewUrl(glyph.svg_url);
@@ -526,7 +582,7 @@ function GlyphCard({
       }
     })();
     return () => { cancelled = true; };
-  }, [isInCurrentBuild, glyph.svg_url, fontType, palette.join(",")]);
+  }, [useBuiltFont, livePreviewSvg, glyph.svg_url, fontType, palette.join(",")]);
 
   const codepointChar = String.fromCodePoint(parseInt(glyph.codepoint, 16));
   const clampedSize = Math.min(iconSize, 56); // clamp to fit inside 96px card
@@ -550,7 +606,7 @@ function GlyphCard({
         className="flex-1 w-full flex items-center justify-center overflow-hidden"
         style={{ background: "transparent" }}
       >
-        {isInCurrentBuild ? (
+        {useBuiltFont ? (
           <span style={{ fontFamily: fontFamily!, fontSize: clampedSize, lineHeight: 1 }}>
             {codepointChar}
           </span>
@@ -786,6 +842,7 @@ function GlyphEditPanel({
   onDeleted,
   onBuild,
   onPaletteChange,
+  onLivePreviewChange,
 }: {
   projectId: string;
   glyph: Glyph;
@@ -799,6 +856,7 @@ function GlyphEditPanel({
   onDeleted: () => void;
   onBuild: () => void;
   onPaletteChange: (p: string[]) => void;
+  onLivePreviewChange: (svg: string | null) => void;
 }) {
   const [name, setName] = useState(glyph.name);
   const [codepoint, setCodepoint] = useState(glyph.codepoint);
@@ -946,12 +1004,30 @@ function GlyphEditPanel({
       const next = [...editedColours];
       next[i] = val;
       setEditedColours(next);
+
+      // Push the recoloured SVG up so the left-side card previews live.
+      if (svgText) {
+        let modified = svgText;
+        svgColours.forEach((orig, j) => {
+          if (next[j] !== orig) {
+            modified = replaceSvgColour(modified, orig, next[j]);
+          }
+        });
+        onLivePreviewChange(modified);
+      }
     } else {
       const next = [...globalPalette];
       next[i] = val;
       onPaletteChange(next);
     }
   }
+
+  // Clear live preview when this panel unmounts (e.g. user picks a different
+  // glyph) so we don't leak stale edits onto the next card.
+  useEffect(() => {
+    return () => onLivePreviewChange(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="ht-card flex flex-col gap-5 flex-1">
