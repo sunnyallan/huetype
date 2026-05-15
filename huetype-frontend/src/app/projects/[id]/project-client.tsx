@@ -147,7 +147,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const [editingPreviewSvg, setEditingPreviewSvg] = useState<string | null>(null);
 
   // Project-level edit state (right panel — no glyph selected)
-  const [previewSize, setPreviewSize] = useState(40);
+  const [previewSize, setPreviewSize] = useState(24);
   const [previewBg, setPreviewBg] = useState("#ffffff");
   const [globalPalette, setGlobalPalette] = useState<string[]>([]);
 
@@ -678,7 +678,7 @@ function GlyphCard({
   }, [useBuiltFont, livePreviewSvg, glyph.svg_url, fontType, palette.join(",")]);
 
   const codepointChar = String.fromCodePoint(parseInt(glyph.codepoint, 16));
-  const clampedSize = Math.min(iconSize, 56); // clamp to fit inside 96px card
+  const clampedSize = Math.min(iconSize, 64); // 64 is the slider max + fits inside 96px card
 
   return (
     <button
@@ -806,8 +806,8 @@ function ProjectEditPanel({
           <span className="text-sm text-ht-ink/60">{previewSize}px</span>
         </div>
         <SizeSlider
-          min={40}
-          max={200}
+          min={24}
+          max={64}
           value={previewSize}
           onChange={onSizeChange}
         />
