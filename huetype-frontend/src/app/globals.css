@@ -38,6 +38,21 @@
   font-family: HueType;
   override-colors: 0 #e2ec5b, 1 #7c6af5, 2 #ff6b9d;
 }
+/* Close / Edit icon rest state */
+@font-palette-values --ht-icon {
+  font-family: HueType;
+  override-colors: 0 #000000, 1 #b7b7b7, 2 #d9d9d9;
+}
+/* Close icon hover: pink / lime / purple */
+@font-palette-values --ht-close-hover {
+  font-family: HueType;
+  override-colors: 0 #ff6b9d, 1 #e2ec5b, 2 #7c6af5;
+}
+/* Edit icon hover: purple / pink / lime */
+@font-palette-values --ht-edit-hover {
+  font-family: HueType;
+  override-colors: 0 #7c6af5, 1 #ff6b9d, 2 #e2ec5b;
+}
 /* Inverted for icons on dark (ink) backgrounds */
 @font-palette-values --ht-ref-inv {
   font-family: HueType;

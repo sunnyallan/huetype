@@ -55,7 +55,10 @@ export type HuePalette =
   | "ref-inv"
   | "duo"
   | "arrow"
-  | "brand";
+  | "brand"
+  | "icon"
+  | "close-hover"
+  | "edit-hover";
 
 export function HueIcon({
   glyph,

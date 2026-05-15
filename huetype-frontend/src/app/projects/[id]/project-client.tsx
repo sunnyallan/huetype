@@ -6,7 +6,7 @@ import { ChevronDown, Pencil, Check } from "lucide-react";
 import { api, type ProjectDetail, type Glyph, type FontType } from "@/lib/api";
 import Loader from "@/components/loader";
 import { Logo } from "@/components/logo";
-import { HueIcon } from "@/components/hue-icon";
+import { HueIcon, type HuePalette } from "@/components/hue-icon";
 import { validateSvgFile } from "@/lib/svg-validate";
 import { recolourSvg, svgToDataUrl } from "@/lib/svg-recolour";
 
@@ -70,6 +70,45 @@ function extractSvgColours(svgText: string): string[] {
 /** Replace every occurrence of one fill value with another in SVG text. */
 function replaceSvgColour(svg: string, from: string, to: string): string {
   return svg.replace(new RegExp(`fill="${from}"`, "gi"), `fill="${to}"`);
+}
+
+// ─── Icon with hover-palette crossfade ───────────────────────────────────────
+
+function IconHoverBtn({
+  glyph,
+  size,
+  restPalette,
+  hoverPalette,
+  onClick,
+  className = "",
+  "aria-label": ariaLabel,
+}: {
+  glyph: string;
+  size: number;
+  restPalette: HuePalette;
+  hoverPalette: HuePalette;
+  onClick?: () => void;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const base: React.CSSProperties = {
+    position: "absolute",
+    transition: "opacity 300ms ease-in-out",
+  };
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label={ariaLabel}
+      className={className}
+      style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: size, height: size }}
+    >
+      <HueIcon glyph={glyph} size={size} palette={restPalette} style={{ ...base, opacity: hovered ? 0 : 1 }} />
+      <HueIcon glyph={glyph} size={size} palette={hoverPalette} style={{ ...base, opacity: hovered ? 1 : 0 }} />
+    </button>
+  );
 }
 
 // ─── Size slider ─────────────────────────────────────────────────────────────
@@ -391,13 +430,14 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
                 <h1 className="text-lg font-semibold text-ht-ink">
                   {project.name}
                 </h1>
-                <button
+                <IconHoverBtn
                   onClick={() => setEditingName(true)}
-                  className="text-ht-ink/30 hover:text-ht-ink transition-colors duration-200 ease-in-out"
                   aria-label="Rename project"
-                >
-                  <HueIcon glyph="edit" size={14} palette="ink" />
-                </button>
+                  glyph="edit"
+                  size={14}
+                  restPalette="icon"
+                  hoverPalette="edit-hover"
+                />
               </>
             )}
           </div>
@@ -430,13 +470,15 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
         </div>
 
         {/* Close — back to dashboard */}
-        <button
+        <IconHoverBtn
           onClick={() => router.push("/dashboard")}
-          className="shrink-0 bg-ht-white rounded-ht-md shadow-ht-soft p-3 border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
           aria-label="Back to dashboard"
-        >
-          <HueIcon glyph="close" size={20} palette="ink" />
-        </button>
+          glyph="close"
+          size={20}
+          restPalette="icon"
+          hoverPalette="close-hover"
+          className="shrink-0 bg-ht-white rounded-ht-md shadow-ht-soft p-3 border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
+        />
       </header>
 
       {/* Error banner */}
@@ -535,6 +577,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
               previewSize={previewSize}
               previewBg={previewBg}
               globalPalette={globalPalette}
+              savedPalette={project.palette}
               isReady={isReady}
               building={building || isBuilding}
               glyphCount={project.glyphs.length}
@@ -696,8 +739,8 @@ function GlyphCard({
     >
       {/* Icon — fills available space above the label row */}
       <div
-        className="flex-1 w-full flex items-center justify-center overflow-hidden"
-        style={{ background: "transparent" }}
+        className="flex-1 w-full flex items-center justify-center overflow-hidden rounded-md"
+        style={{ background: previewBg }}
       >
         {useBuiltFont ? (
           <span style={{ fontFamily: fontFamily!, fontSize: clampedSize, lineHeight: 1 }}>
@@ -756,6 +799,7 @@ function ProjectEditPanel({
   previewSize,
   previewBg,
   globalPalette,
+  savedPalette,
   isReady,
   building,
   glyphCount,
@@ -770,6 +814,7 @@ function ProjectEditPanel({
   previewSize: number;
   previewBg: string;
   globalPalette: string[];
+  savedPalette: string[];
   isReady: boolean;
   building: boolean;
   glyphCount: number;
@@ -816,7 +861,17 @@ function ProjectEditPanel({
       {/* Type Colours — duo/tri only */}
       {(fontType === "duo" || fontType === "tri") && globalPalette.length > 0 && (
         <div>
-          <p className="text-sm text-ht-ink mb-3">Type Colours</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-ht-ink">Type Colours</p>
+            {!palettesEqual(globalPalette, savedPalette) && (
+              <button
+                onClick={() => onPaletteChange([...savedPalette])}
+                className="text-xs text-ht-ink/50 hover:text-ht-ink transition-colors duration-200 ease-in-out"
+              >
+                Reset
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-3">
             {globalPalette.map((c, i) => (
               <label key={i} className="cursor-pointer">
@@ -875,7 +930,7 @@ function ProjectEditPanel({
             </>
           ) : (
             <>
-              <HueIcon glyph="swap" size={16} palette="ink" />
+              <Check size={14} />
               Save
             </>
           )}
