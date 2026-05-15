@@ -678,7 +678,7 @@ function GlyphCard({
   }, [useBuiltFont, livePreviewSvg, glyph.svg_url, fontType, palette.join(",")]);
 
   const codepointChar = String.fromCodePoint(parseInt(glyph.codepoint, 16));
-  const clampedSize = Math.min(iconSize, 64); // 64 is the slider max + fits inside 96px card
+  const clampedSize = Math.min(iconSize, 50); // 50 is the slider max, fits inside 96px card
 
   return (
     <button
@@ -807,7 +807,7 @@ function ProjectEditPanel({
         </div>
         <SizeSlider
           min={24}
-          max={64}
+          max={50}
           value={previewSize}
           onChange={onSizeChange}
         />
