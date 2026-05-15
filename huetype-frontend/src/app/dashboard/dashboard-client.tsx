@@ -203,7 +203,7 @@ function NewTypeButton({ onClick }: { onClick: () => void }) {
 
 /* ─── Project card ──────────────────────────────────────────────────── */
 function ProjectCard({ project }: { project: Project }) {
-  const font = useProjectFont(project.id);
+  const { font, loading } = useProjectFont(project.id);
   const [hovering, setHovering] = useState(false);
   const [glyphIdx, setGlyphIdx] = useState(0);
   const [paletteIdx, setPaletteIdx] = useState(0);
@@ -225,6 +225,22 @@ function ProjectCard({ project }: { project: Project }) {
       setPaletteIdx(0);
     }
   }, [hovering]);
+
+  // ── Skeleton while font is loading ──────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="ht-card flex items-center gap-[18px]">
+        {/* Thumbnail skeleton */}
+        <div className="bg-ht-surface animate-pulse rounded-ht-lg shrink-0 size-[124px]" />
+        {/* Text skeleton */}
+        <div className="flex-1 flex flex-col gap-2.5 py-1">
+          <div className="h-4 bg-ht-surface animate-pulse rounded-full w-32" />
+          <div className="h-3 bg-ht-surface animate-pulse rounded-full w-20" />
+          <div className="mt-3 h-7 bg-ht-surface animate-pulse rounded-full w-28" />
+        </div>
+      </div>
+    );
+  }
 
   const currentGlyph = font?.glyphs[glyphIdx];
   const glyphChar = currentGlyph

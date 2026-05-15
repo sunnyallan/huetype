@@ -14,25 +14,32 @@ export type ProjectFont = {
 // In-memory cache so each card only fetches once per session
 const fontCache = new Map<string, Promise<ProjectFont | null>>();
 
-export function useProjectFont(projectId: string): ProjectFont | null {
+export function useProjectFont(
+  projectId: string,
+): { font: ProjectFont | null; loading: boolean } {
   const [font, setFont] = useState<ProjectFont | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     let promise = fontCache.get(projectId);
     if (!promise) {
       promise = loadProjectFont(projectId);
       fontCache.set(projectId, promise);
     }
     promise.then((f) => {
-      if (!cancelled) setFont(f);
+      if (!cancelled) {
+        setFont(f);
+        setLoading(false);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, [projectId]);
 
-  return font;
+  return { font, loading };
 }
 
 async function loadProjectFont(projectId: string): Promise<ProjectFont | null> {
