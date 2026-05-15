@@ -23,18 +23,52 @@ function palettesEqual(a: string[], b: string[]) {
 
 // ─── SVG colour utilities ────────────────────────────────────────────────────
 
-/** Extract unique hex fill colours from raw SVG text */
-function extractSvgColours(svgText: string): string[] {
-  const seen = new Set<string>();
-  for (const m of svgText.matchAll(/fill="(#[0-9a-fA-F]{3,6})"/g)) {
-    if (m[1].toLowerCase() !== "none") seen.add(m[1].toLowerCase());
+const SKIP_FILLS = new Set(["none", "transparent", "inherit", "currentcolor"]);
+
+/**
+ * Normalise any CSS colour value to a lowercase #rrggbb hex string.
+ * Uses a hidden canvas so named colours like "black" → "#000000".
+ */
+function cssColourToHex(colour: string): string {
+  if (/^#[0-9a-fA-F]{3,6}$/.test(colour)) {
+    // Already hex — normalise to 6-digit lowercase
+    const h = colour.slice(1);
+    const full = h.length === 3
+      ? h.split("").map((c) => c + c).join("")
+      : h;
+    return `#${full.toLowerCase()}`;
   }
-  return [...seen];
+  try {
+    const ctx = document.createElement("canvas").getContext("2d")!;
+    ctx.fillStyle = colour;
+    return ctx.fillStyle as string; // browser normalises to #rrggbb
+  } catch {
+    return colour.toLowerCase();
+  }
 }
 
-/** Replace every occurrence of one fill colour with another in SVG text */
+/**
+ * Extract all distinct paintable fill values from an SVG string.
+ * Returns an array of the *original* attribute strings (e.g. "black", "#B8B7B7")
+ * so they can be used as replacement targets; callers normalise to hex
+ * separately via cssColourToHex for display / dirty-check purposes.
+ */
+function extractSvgColours(svgText: string): string[] {
+  const seenKey = new Set<string>(); // deduplication key = lower-cased value
+  const result: string[] = [];
+  for (const m of svgText.matchAll(/fill="([^"]+)"/g)) {
+    const val = m[1].trim();
+    const key = val.toLowerCase();
+    if (SKIP_FILLS.has(key)) continue;
+    if (seenKey.has(key)) continue;
+    seenKey.add(key);
+    result.push(val);
+  }
+  return result;
+}
+
+/** Replace every occurrence of one fill value with another in SVG text. */
 function replaceSvgColour(svg: string, from: string, to: string): string {
-  // case-insensitive replace for both upper/lower hex
   return svg.replace(new RegExp(`fill="${from}"`, "gi"), `fill="${to}"`);
 }
 
@@ -861,6 +895,11 @@ function GlyphEditPanel({
   const [name, setName] = useState(glyph.name);
   const [codepoint, setCodepoint] = useState(glyph.codepoint);
   const [svgText, setSvgText] = useState<string | null>(null);
+  // svgOriginals — raw attribute values from the SVG (e.g. "black", "#B8B7B7")
+  //   used as the replacement target in the SVG string.
+  // svgColours   — same values normalised to hex; baseline for dirty detection.
+  // editedColours — current hex values shown in the colour pickers.
+  const [svgOriginals, setSvgOriginals] = useState<string[]>([]);
   const [svgColours, setSvgColours] = useState<string[]>([]);
   const [editedColours, setEditedColours] = useState<string[]>([]);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -868,6 +907,15 @@ function GlyphEditPanel({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+
+  /** Shared helper: parse and set colour state from raw SVG text. */
+  function applyColourState(text: string) {
+    const originals = extractSvgColours(text); // ["black", "#B8B7B7", "#D9D9D9"]
+    const hexes = originals.map(cssColourToHex);  // ["#000000", "#b8b7b7", "#d9d9d9"]
+    setSvgOriginals(originals);
+    setSvgColours(hexes);
+    setEditedColours(hexes);
+  }
 
   // Fetch and parse SVG colours on mount (illustration only)
   useEffect(() => {
@@ -879,12 +927,11 @@ function GlyphEditPanel({
         const text = await res.text();
         if (cancelled) return;
         setSvgText(text);
-        const colours = extractSvgColours(text);
-        setSvgColours(colours);
-        setEditedColours(colours);
+        applyColourState(text);
       } catch { /* silent */ }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [glyph.svg_url, fontType]);
 
   const codepointChar = String.fromCodePoint(parseInt(glyph.codepoint, 16));
@@ -925,9 +972,7 @@ function GlyphEditPanel({
     if (fontType === "illustration") {
       const text = await file.text();
       setSvgText(text);
-      const colours = extractSvgColours(text);
-      setSvgColours(colours);
-      setEditedColours(colours);
+      applyColourState(text);
     }
   }
 
@@ -944,11 +989,14 @@ function GlyphEditPanel({
 
       // 2. For illustration: apply colour edits to SVG and re-upload
       if (fontType === "illustration" && svgText) {
+        // Dirty check: compare edited hex values to the normalised baseline
         const coloursDirty = editedColours.some((c, i) => c !== svgColours[i]);
         if (coloursDirty) {
           let modified = svgText;
-          svgColours.forEach((orig, i) => {
-            if (editedColours[i] !== orig) {
+          // Use svgOriginals (raw attr values) as the search key so that
+          // named colours like "black" are correctly found and replaced.
+          svgOriginals.forEach((orig, i) => {
+            if (editedColours[i] !== svgColours[i]) {
               modified = replaceSvgColour(modified, orig, editedColours[i]);
             }
           });
@@ -1006,10 +1054,11 @@ function GlyphEditPanel({
       setEditedColours(next);
 
       // Push the recoloured SVG up so the left-side card previews live.
+      // Use svgOriginals as the search key — handles named colours (e.g. "black").
       if (svgText) {
         let modified = svgText;
-        svgColours.forEach((orig, j) => {
-          if (next[j] !== orig) {
+        svgOriginals.forEach((orig, j) => {
+          if (next[j] !== svgColours[j]) {
             modified = replaceSvgColour(modified, orig, next[j]);
           }
         });
