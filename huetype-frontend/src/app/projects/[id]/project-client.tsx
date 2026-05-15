@@ -477,7 +477,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
           size={20}
           restPalette="icon"
           hoverPalette="close-hover"
-          className="shrink-0 bg-ht-white rounded-ht-md shadow-ht-soft p-3 border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
+          className="shrink-0 inline-flex items-center justify-center bg-ht-white rounded-ht-md shadow-ht-soft p-3 border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
         />
       </header>
 
