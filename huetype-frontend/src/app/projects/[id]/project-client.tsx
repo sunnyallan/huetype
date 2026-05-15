@@ -474,7 +474,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
           onClick={() => router.push("/dashboard")}
           aria-label="Back to dashboard"
           glyph="close"
-          size={32}
+          size={24}
           restPalette="icon"
           hoverPalette="close-hover"
           className="shrink-0 flex items-center justify-center bg-ht-white rounded-ht-md shadow-ht-soft pl-5 pr-7 py-5 border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
