@@ -62,10 +62,21 @@ async function loadProjectFont(projectId: string): Promise<ProjectFont | null> {
     if (palette.length === 0) return null;
 
     const family = `htproj-${projectId.slice(0, 8)}`;
-    const blob = new Blob([buf], { type: "font/ttf" });
-    const blobUrl = URL.createObjectURL(blob);
+    const styleId = `style-${family}`;
 
-    // Generate 4 palette variants by hue-rotating the base palette.
+    // Use the FontFace API so the promise only resolves once the font
+    // bytes are fully parsed and ready to render — no swap flash.
+    // document.fonts.add() persists across client-side navigations so
+    // returning to the dashboard also shows the correct preview instantly.
+    if (!document.fonts.check(`12px "${family}"`)) {
+      const blob = new Blob([buf], { type: "font/ttf" });
+      const blobUrl = URL.createObjectURL(blob);
+      const face = new FontFace(family, `url(${blobUrl})`);
+      await face.load();
+      document.fonts.add(face);
+    }
+
+    // Build 4 hue-rotated palette variants and inject as CSS palette rules
     const variants: { name: string; colors: RGB[] }[] = [
       { name: `--${family}-p0`, colors: palette },
       { name: `--${family}-p1`, colors: palette.map((c) => rotateHue(c, 90)) },
@@ -73,7 +84,7 @@ async function loadProjectFont(projectId: string): Promise<ProjectFont | null> {
       { name: `--${family}-p3`, colors: palette.map((c) => rotateHue(c, 270)) },
     ];
 
-    injectStyle(family, blobUrl, variants);
+    injectPaletteStyle(styleId, family, variants);
 
     return {
       fontFamily: family,
@@ -85,38 +96,24 @@ async function loadProjectFont(projectId: string): Promise<ProjectFont | null> {
   }
 }
 
-function injectStyle(
+/** Inject only @font-palette-values rules (idempotent via styleId). */
+function injectPaletteStyle(
+  styleId: string,
   family: string,
-  fontUrl: string,
   variants: { name: string; colors: RGB[] }[],
 ) {
-  const styleId = `style-${family}`;
   if (document.getElementById(styleId)) return;
 
   const el = document.createElement("style");
   el.id = styleId;
-
-  const faceRule = `
-    @font-face {
-      font-family: "${family}";
-      src: url("${fontUrl}") format("truetype");
-      font-display: swap;
-    }
-  `;
-
-  const paletteRules = variants
+  el.textContent = variants
     .map((v) => {
       const overrides = v.colors
         .map((c, i) => `${i} rgb(${c[0]},${c[1]},${c[2]})`)
-        .join(",");
-      return `@font-palette-values ${v.name} {
-        font-family: "${family}";
-        override-colors: ${overrides};
-      }`;
+        .join(", ");
+      return `@font-palette-values ${v.name} { font-family: "${family}"; override-colors: ${overrides}; }`;
     })
     .join("\n");
-
-  el.textContent = faceRule + paletteRules;
   document.head.appendChild(el);
 }
 
