@@ -186,7 +186,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const [editingPreviewSvg, setEditingPreviewSvg] = useState<string | null>(null);
 
   // Project-level edit state (right panel — no glyph selected)
-  const [previewSize, setPreviewSize] = useState(24);
+  const [previewSize, setPreviewSize] = useState(30);
   const [previewBg, setPreviewBg] = useState("#ffffff");
   const [globalPalette, setGlobalPalette] = useState<string[]>([]);
 
