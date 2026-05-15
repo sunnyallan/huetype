@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase-browser";
 import Loader from "@/components/loader";
 import { Logo } from "@/components/logo";
 import { useProjectFont } from "@/lib/use-project-font";
-import { HueIcon, HUE_ALL, type HuePalette } from "@/components/hue-icon";
+import { HueIcon, HUE, type HuePalette } from "@/components/hue-icon";
 
 type Tab = "active" | "archived";
 
@@ -304,30 +304,21 @@ function ProjectCard({ project }: { project: Project }) {
 }
 
 function HueTypeFallbackThumb({ hovering }: { hovering: boolean }) {
-  // Cycles through the built-in Hue Type glyphs for projects that
-  // don't have their own font built yet.
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (!hovering) {
-      setI(0);
-      return;
-    }
-    const id = setInterval(() => setI((n) => (n + 1) % HUE_ALL.length), 450);
-    return () => clearInterval(id);
-  }, [hovering]);
+  // Static placeholder for projects that don't have a built font yet.
+  // Shows the newType glyph — changes palette on hover to signal interactivity.
   return (
     <span
-      key={i}
       style={
         {
           fontFamily: "HueType",
-          fontPalette: "--ht-ref",
+          fontPalette: hovering ? "--ht-brand" : "--ht-ref",
           fontSize: 72,
           lineHeight: 1,
+          transition: "font-palette 300ms ease-in-out",
         } as React.CSSProperties
       }
     >
-      {HUE_ALL[i]}
+      {HUE.newType}
     </span>
   );
 }
