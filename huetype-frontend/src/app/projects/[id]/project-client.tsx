@@ -97,16 +97,27 @@ function SizeSlider({
 }) {
   const pct = ((value - min) / (max - min)) * 100; // 0..100
 
+  // Right-edge radius equals the track's pill radius so wide fills look
+  // continuous; narrow fills are clipped by the parent's overflow-hidden.
+  const r = SLIDER_TRACK_H / 2;
+
   return (
-    <div className="relative w-full" style={{ height: SLIDER_TRACK_H }}>
-      {/* Grey track */}
-      <div className="absolute inset-0 rounded-full bg-[#dce2de]" />
-      {/* Lime fill — fully rounded so the right edge is a half-pill */}
+    <div
+      className="relative w-full overflow-hidden rounded-full bg-[#dce2de]"
+      style={{ height: SLIDER_TRACK_H }}
+    >
+      {/* Lime fill — rounded only on the right edge.
+          Left edge is clipped by the parent's pill shape, so the curve
+          always follows the track. */}
       <div
-        className="absolute left-0 top-0 bottom-0 rounded-full bg-[#eefa94]"
-        style={{ width: `${pct}%` }}
+        className="absolute left-0 top-0 bottom-0 bg-[#eefa94]"
+        style={{
+          width: `${pct}%`,
+          borderTopRightRadius: r,
+          borderBottomRightRadius: r,
+        }}
       />
-      {/* Invisible native input — handles all interaction & a11y */}
+      {/* Invisible native input — drag, click-to-jump, keyboard a11y */}
       <input
         type="range"
         min={min}
