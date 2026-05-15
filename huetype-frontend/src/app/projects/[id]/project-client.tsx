@@ -83,7 +83,6 @@ function replaceSvgColour(svg: string, from: string, to: string): string {
 // centre position, so the two always align (no parallax).
 
 const SLIDER_TRACK_H = 52; // px
-const SLIDER_THUMB = 44; // px
 
 function SizeSlider({
   min,
@@ -97,10 +96,6 @@ function SizeSlider({
   onChange: (v: number) => void;
 }) {
   const pct = ((value - min) / (max - min)) * 100; // 0..100
-  // Thumb-centre position, accounting for thumb width:
-  //   at pct = 0   → 22px from left  (thumb fully inside)
-  //   at pct = 100 → 100% − 22px     (thumb fully inside)
-  const centre = `calc(${pct / 100} * (100% - ${SLIDER_THUMB}px) + ${SLIDER_THUMB / 2}px)`;
 
   return (
     <div className="relative w-full" style={{ height: SLIDER_TRACK_H }}>
@@ -109,17 +104,7 @@ function SizeSlider({
       {/* Lime fill — fully rounded so the right edge is a half-pill */}
       <div
         className="absolute left-0 top-0 bottom-0 rounded-full bg-[#eefa94]"
-        style={{ width: centre }}
-      />
-      {/* Ring thumb — transparent centre so the gradient shows through */}
-      <div
-        className="absolute top-1/2 rounded-full border-[4px] border-white pointer-events-none"
-        style={{
-          width: SLIDER_THUMB,
-          height: SLIDER_THUMB,
-          left: centre,
-          transform: "translate(-50%, -50%)",
-        }}
+        style={{ width: `${pct}%` }}
       />
       {/* Invisible native input — handles all interaction & a11y */}
       <input
