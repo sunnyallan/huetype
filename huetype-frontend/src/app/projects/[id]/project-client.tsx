@@ -391,7 +391,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     !palettesEqual(globalPalette, project.palette);
 
   return (
-    <main className="ht-app min-h-screen flex flex-col">
+    <main className="ht-app min-h-screen flex flex-col max-w-[1440px] mx-auto w-full">
       {/* Build overlay */}
       {isBuilding && (
         <div className="fixed inset-0 z-40 bg-ht-bg/85 backdrop-blur-sm flex items-center justify-center pointer-events-auto">

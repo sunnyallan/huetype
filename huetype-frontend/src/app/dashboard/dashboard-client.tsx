@@ -73,7 +73,7 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
   const visibleProjects = tab === "active" ? activeProjects : archivedProjects;
 
   return (
-    <main className="ht-app min-h-screen relative">
+    <main className="ht-app min-h-screen relative max-w-[1440px] mx-auto w-full">
       {/* ── Logo top-left ────────────────────────────────────────────── */}
       <div className="absolute top-9 left-12">
         <Logo size={56} />
