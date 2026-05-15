@@ -477,7 +477,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
           size={32}
           restPalette="icon"
           hoverPalette="close-hover"
-          className="shrink-0 flex items-center justify-center bg-ht-white rounded-ht-md shadow-ht-soft px-6 py-5 border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
+          className="shrink-0 flex items-center justify-center bg-ht-white rounded-ht-md shadow-ht-soft pl-5 pr-7 py-5 border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
         />
       </header>
 
@@ -1030,6 +1030,8 @@ function GlyphEditPanel({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteHovered, setDeleteHovered] = useState(false);
+  const [saveCloseHovered, setSaveCloseHovered] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
 
   /** Shared helper: parse and set colour state from raw SVG text. */
@@ -1307,24 +1309,50 @@ function GlyphEditPanel({
         <button
           onClick={deleteGlyph}
           disabled={deleting || saving}
-          className="flex-1 ht-btn bg-red-50 border border-red-200 text-red-600 py-4 hover:border-red-400 hover:bg-red-100 transition-colors duration-200 ease-in-out disabled:opacity-40"
+          onMouseEnter={() => setDeleteHovered(true)}
+          onMouseLeave={() => setDeleteHovered(false)}
+          className={[
+            "flex-1 ht-btn py-4 border transition-all duration-300 ease-in-out disabled:opacity-40",
+            deleteHovered
+              ? "bg-red-600 border-red-600 text-white"
+              : "bg-red-50 border-red-200 text-red-600",
+          ].join(" ")}
         >
-          <HueIcon glyph="close" size={16} palette="ink" />
+          {/* Icon crossfade: ink at rest → ref-inv (white) on dark red hover */}
+          <span style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+            <HueIcon glyph="close" size={16} palette="ink"
+              style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: deleteHovered ? 0 : 1 }} />
+            <HueIcon glyph="close" size={16} palette="ref-inv"
+              style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: deleteHovered ? 1 : 0 }} />
+          </span>
           Delete Icon
         </button>
         <button
           onClick={saveAndClose}
           disabled={saving || deleting || !!nameError || !!codepointError}
-          className="flex-1 ht-btn bg-ht-ink text-ht-white py-4 hover:opacity-90 transition-opacity disabled:opacity-40"
+          onMouseEnter={() => setSaveCloseHovered(true)}
+          onMouseLeave={() => setSaveCloseHovered(false)}
+          className={[
+            "flex-1 ht-btn py-4 border transition-all duration-300 ease-in-out disabled:opacity-40",
+            saveCloseHovered
+              ? "bg-[#f7f8f8] text-ht-ink border-ht-ink"
+              : "bg-ht-ink text-ht-white border-transparent",
+          ].join(" ")}
         >
           {saving ? (
             <>
-              <span className="inline-block w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
               Saving…
             </>
           ) : (
             <>
-              <HueIcon glyph="add" size={16} palette="light-lime" />
+              {/* Icon crossfade: light-lime at rest → ref on light hover bg */}
+              <span style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+                <HueIcon glyph="add" size={16} palette="light-lime"
+                  style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: saveCloseHovered ? 0 : 1 }} />
+                <HueIcon glyph="add" size={16} palette="ref"
+                  style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: saveCloseHovered ? 1 : 0 }} />
+              </span>
               Save & Close
             </>
           )}
