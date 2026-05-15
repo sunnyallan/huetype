@@ -68,10 +68,18 @@ async function loadProjectFont(projectId: string): Promise<ProjectFont | null> {
     // bytes are fully parsed and ready to render — no swap flash.
     // document.fonts.add() persists across client-side navigations so
     // returning to the dashboard also shows the correct preview instantly.
-    if (!document.fonts.check(`12px "${family}"`)) {
-      const blob = new Blob([buf], { type: "font/ttf" });
-      const blobUrl = URL.createObjectURL(blob);
-      const face = new FontFace(family, `url(${blobUrl})`);
+    //
+    // NOTE: document.fonts.check() is unreliable for unknown families
+    // (returns true via fallback), so iterate document.fonts to check
+    // whether a face with this family is already registered.
+    let alreadyLoaded = false;
+    document.fonts.forEach((f) => {
+      if (f.family === family && f.status === "loaded") alreadyLoaded = true;
+    });
+    if (!alreadyLoaded) {
+      // Pass the ArrayBuffer directly — avoids blob URL roundtrip and
+      // ensures the FontFace owns the bytes.
+      const face = new FontFace(family, buf);
       await face.load();
       document.fonts.add(face);
     }
