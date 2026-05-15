@@ -340,7 +340,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
 
           {project.glyphs.length > 0 && (
             <div className="ht-card">
-              <div className="grid grid-cols-6 gap-3">
+              <div className="flex flex-wrap gap-3">
                 {project.glyphs.map((g) => (
                   <GlyphCard
                     key={g.id}
