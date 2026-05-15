@@ -41,7 +41,7 @@
 /* Close / Edit icon rest state */
 @font-palette-values --ht-icon {
   font-family: HueType;
-  override-colors: 0 #000000, 1 #d9d9d9, 2 #b7b7b7;
+  override-colors: 0 #b7b7b7, 1 #d9d9d9, 2 #000000;
 }
 /* Close icon hover: pink / lime / purple */
 @font-palette-values --ht-close-hover {
