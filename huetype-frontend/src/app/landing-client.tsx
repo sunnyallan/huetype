@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { HueIcon, HUE, type HueGlyph, type HuePalette } from "@/components/hue-icon";
+import { HueIcon, HUE, HUE_ALL, type HueGlyph, type HuePalette } from "@/components/hue-icon";
 import { Logo } from "@/components/logo";
 import Loader from "@/components/loader";
 
@@ -14,6 +14,9 @@ const HERO_GLYPHS: HueGlyph[] = [
 
 // Named palettes from globals.css — cycle on the hero glyph strip
 const HERO_PALETTES: HuePalette[] = ["brand", "ref", "close-hover", "edit-hover"];
+
+// Repeating glyph string for the text-on-path background (all 12 glyphs × 4)
+const GLYPH_PATH_TEXT = (HUE_ALL.join("  ") + "  ·  ").repeat(4);
 
 // File size bar chart
 const BAR_DATA = [
@@ -94,50 +97,50 @@ export default function LandingClient() {
       {/* ── 2. Hero ────────────────────────────────────────────────────── */}
       <section className="relative flex flex-col items-center justify-center min-h-[88vh] px-6 overflow-hidden">
 
-        {/* Decorative text-on-path background */}
+        {/* Decorative glyph-on-path background — actual HueType icons scrolling along arcs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
           <svg
-            viewBox="0 0 1200 180"
+            viewBox="0 0 1200 200"
             preserveAspectRatio="xMidYMid slice"
             className="w-full h-full"
             style={{ opacity: 0.09 }}
           >
             <defs>
-              <path id="arc1" d="M 0,90 Q 300,30  600,90 Q 900,150 1200,90" />
-              <path id="arc2" d="M 0,60 Q 300,120 600,60 Q 900,0   1200,60" />
+              <path id="arc1" d="M -200,100 Q 300,30  700,100 Q 1100,170 1400,100" />
+              <path id="arc2" d="M -200,70  Q 300,140 700,70  Q 1100,0   1400,70" />
             </defs>
+            {/* Top arc — glyphs in ref (grey) palette */}
             <text
-              fontFamily="Albert Sans, system-ui, sans-serif"
-              fontSize="14"
-              fill="currentColor"
-              letterSpacing="2"
+              fontFamily="HueType"
+              fontSize="24"
+              style={{ fontPalette: "--ht-ref" } as React.CSSProperties}
             >
               <textPath href="#arc1">
                 <animate
                   attributeName="startOffset"
-                  from="-60%"
+                  from="-80%"
                   to="100%"
-                  dur="24s"
+                  dur="26s"
                   repeatCount="indefinite"
                 />
-                Your icons · shipped as a font · font-palette · COLR/CPAL v1 · WOFF2 · TTF · recolour live ·&nbsp;
+                {GLYPH_PATH_TEXT}
               </textPath>
             </text>
+            {/* Bottom arc — glyphs in duo (mono grey) palette, offset start */}
             <text
-              fontFamily="Albert Sans, system-ui, sans-serif"
-              fontSize="14"
-              fill="currentColor"
-              letterSpacing="2"
+              fontFamily="HueType"
+              fontSize="20"
+              style={{ fontPalette: "--ht-duo" } as React.CSSProperties}
             >
               <textPath href="#arc2">
                 <animate
                   attributeName="startOffset"
-                  from="-30%"
-                  to="130%"
-                  dur="32s"
+                  from="-40%"
+                  to="140%"
+                  dur="34s"
                   repeatCount="indefinite"
                 />
-                Upload SVGs · one HTTP request · one cache entry · every icon · 30× smaller than PNG ·&nbsp;
+                {GLYPH_PATH_TEXT}
               </textPath>
             </text>
           </svg>
