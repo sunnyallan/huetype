@@ -1,17 +1,35 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Trash2, Hammer, Check, Pencil } from "lucide-react";
-import { api, type ProjectDetail, type Glyph, type FontJob } from "@/lib/api";
-import FontPreview from "@/components/font-preview";
+import { ChevronDown, Pencil, Check } from "lucide-react";
+import { api, type ProjectDetail, type Glyph, type FontType } from "@/lib/api";
 import Loader from "@/components/loader";
+import { Logo } from "@/components/logo";
+import { HueIcon } from "@/components/hue-icon";
 import { validateSvgFile } from "@/lib/svg-validate";
 import { recolourSvg, svgToDataUrl } from "@/lib/svg-recolour";
-import EditGlyphDialog from "@/components/edit-glyph-dialog";
 
 const PROJECT_FONT_FAMILY = "HueTypeProjectFont";
+
+// ─── SVG colour utilities ────────────────────────────────────────────────────
+
+/** Extract unique hex fill colours from raw SVG text */
+function extractSvgColours(svgText: string): string[] {
+  const seen = new Set<string>();
+  for (const m of svgText.matchAll(/fill="(#[0-9a-fA-F]{3,6})"/g)) {
+    if (m[1].toLowerCase() !== "none") seen.add(m[1].toLowerCase());
+  }
+  return [...seen];
+}
+
+/** Replace every occurrence of one fill colour with another in SVG text */
+function replaceSvgColour(svg: string, from: string, to: string): string {
+  // case-insensitive replace for both upper/lower hex
+  return svg.replace(new RegExp(`fill="${from}"`, "gi"), `fill="${to}"`);
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
 
 export default function ProjectClient({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -20,11 +38,18 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [building, setBuilding] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [editingGlyphId, setEditingGlyphId] = useState<string | null>(null);
-  const [nameInput, setNameInput] = useState("");
   const [fontReady, setFontReady] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingGlyphId, setEditingGlyphId] = useState<string | null>(null);
+
+  // Project-level edit state (right panel — no glyph selected)
+  const [previewSize, setPreviewSize] = useState(96);
+  const [previewBg, setPreviewBg] = useState("#ffffff");
+  const [globalPalette, setGlobalPalette] = useState<string[]>([]);
+
+  // Inline project-name editing
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const load = useCallback(async () => {
@@ -32,6 +57,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
       const data = await api.getProject(projectId);
       setProject(data);
       setNameInput(data.name);
+      setGlobalPalette(data.palette);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -56,7 +82,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     }
   }, [project?.latest_job?.status, load, project?.latest_job]);
 
-  // Register the built font once so all glyph cards can render the real glyph
+  // Register built font for glyph-card rendering
   const lastJobId = project?.latest_job?.id;
   const isLatestComplete = project?.latest_job?.status === "complete";
   useEffect(() => {
@@ -67,7 +93,6 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     let cancelled = false;
     let blobUrl: string | null = null;
     let styleEl: HTMLStyleElement | null = null;
-
     (async () => {
       try {
         const { url } = await api.getDownloadUrl(projectId, lastJobId, "ttf");
@@ -76,20 +101,13 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
         if (cancelled) return;
         blobUrl = URL.createObjectURL(new Blob([buf], { type: "font/ttf" }));
         styleEl = document.createElement("style");
-        styleEl.textContent = `
-          @font-face {
-            font-family: "${PROJECT_FONT_FAMILY}";
-            src: url("${blobUrl}") format("truetype");
-            font-display: block;
-          }
-        `;
+        styleEl.textContent = `@font-face { font-family: "${PROJECT_FONT_FAMILY}"; src: url("${blobUrl}") format("truetype"); font-display: block; }`;
         document.head.appendChild(styleEl);
         setFontReady(true);
       } catch {
         setFontReady(false);
       }
     })();
-
     return () => {
       cancelled = true;
       setFontReady(false);
@@ -98,36 +116,26 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     };
   }, [projectId, lastJobId, isLatestComplete]);
 
+  // ── Actions ──────────────────────────────────────────────────────────────
+
   async function handleFiles(files: FileList) {
     if (!project) return;
     setUploading(true);
     setError(null);
-
-    // Pre-validate all files client-side; collect errors
     const valid: File[] = [];
     const errors: string[] = [];
     for (const file of Array.from(files)) {
       const result = await validateSvgFile(file, project.font_type);
-      if (result.ok) {
-        valid.push(file);
-      } else {
-        errors.push(result.error);
-      }
+      if (result.ok) valid.push(file);
+      else errors.push(result.error);
     }
-
     if (errors.length > 0) {
       setError(errors.join("  •  "));
-      if (valid.length === 0) {
-        setUploading(false);
-        return;
-      }
+      if (valid.length === 0) { setUploading(false); return; }
     }
-
     try {
       for (const file of valid) {
-        const name = file.name
-          .replace(/\.svg$/i, "")
-          .replace(/[^a-z0-9]+/gi, "_");
+        const name = file.name.replace(/\.svg$/i, "").replace(/[^a-z0-9]+/gi, "_");
         await api.uploadGlyph(projectId, file, name);
       }
       await load();
@@ -135,25 +143,6 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
-    }
-  }
-
-  async function handleDelete(glyphId: string) {
-    if (!confirm("Delete this glyph?")) return;
-    try {
-      await api.deleteGlyph(projectId, glyphId);
-      await load();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Delete failed");
-    }
-  }
-
-  async function handleRename(glyphId: string, newName: string) {
-    try {
-      await api.updateGlyph(projectId, glyphId, { name: newName });
-      await load();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Rename failed");
     }
   }
 
@@ -170,14 +159,49 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     }
   }
 
+  async function saveAndBuild() {
+    if (!project) return;
+    setError(null);
+    // Persist palette changes for duo/tri first
+    if (project.font_type !== "illustration") {
+      try {
+        await api.updateProject(projectId, {
+          name: project.name,
+          description: project.description ?? "",
+          font_type: project.font_type,
+          palette: globalPalette,
+        });
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Failed to save palette");
+        return;
+      }
+    }
+    await build();
+  }
+
+  async function download(fmt: "ttf" | "woff2") {
+    if (!project?.latest_job) return;
+    try {
+      const { url } = await api.getDownloadUrl(projectId, project.latest_job.id, fmt);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project.name}.${fmt}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Download failed");
+    }
+  }
+
   async function saveName() {
-    if (!project || nameInput === project.name) {
+    if (!project || nameInput.trim() === project.name) {
       setEditingName(false);
       return;
     }
     try {
       await api.updateProject(projectId, {
-        name: nameInput,
+        name: nameInput.trim(),
         description: project.description ?? "",
         font_type: project.font_type,
         palette: project.palette,
@@ -189,48 +213,29 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     }
   }
 
-  async function savePalette(palette: string[]) {
-    if (!project) return;
-    try {
-      await api.updateProject(projectId, {
-        name: project.name,
-        description: project.description ?? "",
-        font_type: project.font_type,
-        palette,
-      });
-      await load();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save palette");
-    }
-  }
-
-  async function deleteProject() {
-    if (!confirm(`Delete "${project?.name}" and all its glyphs? This cannot be undone.`))
-      return;
-    try {
-      await api.deleteProject(projectId);
-      router.push("/dashboard");
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Delete failed");
-    }
-  }
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (loading)
     return (
-      <main className="min-h-screen flex items-center justify-center p-8">
+      <main className="ht-app min-h-screen flex items-center justify-center">
         <Loader size="md" label="Loading project…" />
       </main>
     );
-  if (!project) return <p className="p-8 text-red-400 text-sm">Project not found</p>;
+  if (!project)
+    return <p className="p-8 text-red-400 text-sm">Project not found</p>;
 
   const job = project.latest_job;
   const isBuilding = !!job && ["queued", "processing"].includes(job.status);
   const isReady = job?.status === "complete";
+  const editingGlyph = editingGlyphId
+    ? (project.glyphs.find((g) => g.id === editingGlyphId) ?? null)
+    : null;
 
   return (
-    <main className="min-h-screen p-8 max-w-6xl mx-auto relative">
+    <main className="ht-app min-h-screen flex flex-col">
+      {/* Build overlay */}
       {isBuilding && (
-        <div className="fixed inset-0 z-40 bg-bg/85 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
+        <div className="fixed inset-0 z-40 bg-ht-bg/85 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
           <Loader
             size="lg"
             label="Building your font…"
@@ -240,165 +245,181 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      <div
-        className={isBuilding ? "pointer-events-none select-none opacity-60 transition-opacity" : "transition-opacity"}
-        aria-busy={isBuilding}
-      >
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 text-sm"
-      >
-        <ArrowLeft size={14} /> Back
-      </Link>
-
-      <header className="flex items-start justify-between mb-8 gap-4">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <header className="flex items-center gap-5 px-10 pt-8 pb-5">
+        <Logo size={48} className="shrink-0" />
         <div className="flex-1 min-w-0">
-          {editingName ? (
-            <input
-              autoFocus
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onBlur={saveName}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveName();
-                if (e.key === "Escape") {
-                  setNameInput(project.name);
-                  setEditingName(false);
-                }
-              }}
-              className="text-2xl font-semibold bg-transparent border-b border-accent outline-none w-full"
-            />
-          ) : (
-            <h1
-              className="text-2xl font-semibold cursor-text hover:text-accent"
-              onClick={() => setEditingName(true)}
-              title="Click to rename"
-            >
-              {project.name}
-            </h1>
-          )}
+          {/* Editable project name */}
+          <div className="flex items-center gap-2">
+            {editingName ? (
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onBlur={saveName}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveName();
+                  if (e.key === "Escape") {
+                    setNameInput(project.name);
+                    setEditingName(false);
+                  }
+                }}
+                className="text-lg font-semibold bg-transparent border-b border-ht-ink outline-none text-ht-ink"
+              />
+            ) : (
+              <>
+                <h1 className="text-lg font-semibold text-ht-ink">
+                  {project.name}
+                </h1>
+                <button
+                  onClick={() => setEditingName(true)}
+                  className="text-ht-ink/30 hover:text-ht-ink transition-colors duration-200 ease-in-out"
+                  aria-label="Rename project"
+                >
+                  <HueIcon glyph="edit" size={14} palette="ink" />
+                </button>
+              </>
+            )}
+          </div>
           {project.description && (
-            <p className="text-text-secondary text-sm mt-1">{project.description}</p>
+            <p className="text-sm text-ht-ink/60 mt-0.5 truncate">
+              {project.description}
+            </p>
           )}
+          <div className="flex items-center gap-2 mt-2">
+            <span className="ht-chip gap-1.5">
+              <HueIcon
+                glyph={
+                  project.font_type === "illustration"
+                    ? "illustration"
+                    : project.font_type === "duo"
+                      ? "duoTone"
+                      : "triTone"
+                }
+                size={12}
+                palette={project.font_type === "duo" ? "duo" : project.font_type === "tri" ? "brand" : "default"}
+              />
+              {project.font_type === "illustration"
+                ? "Illustration"
+                : project.font_type === "duo"
+                  ? "Duo-tone"
+                  : "Tri-tone"}
+            </span>
+            <span className="ht-chip">{project.glyphs.length} Glyphs</span>
+          </div>
         </div>
-        <button onClick={deleteProject} className="btn-ghost text-red-400">
-          <Trash2 size={14} /> Delete
+
+        {/* Close — back to dashboard */}
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="shrink-0 bg-ht-white rounded-ht-md shadow-ht-soft p-3 border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
+          aria-label="Back to dashboard"
+        >
+          <HueIcon glyph="close" size={20} palette="ink" />
         </button>
       </header>
 
+      {/* Error banner */}
       {error && (
-        <div className="card p-3 mb-4 border-red-900 text-red-400 text-sm">
+        <div className="mx-10 mb-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-ht-md px-4 py-3">
           {error}
         </div>
       )}
 
-      <div className="mb-4 flex items-center gap-2 text-xs text-text-muted">
-        <span className="px-2 py-0.5 rounded bg-bg-card border border-border">
-          {project.font_type === "illustration"
-            ? "Illustration"
-            : project.font_type === "duo"
-              ? "Duo-tone"
-              : "Tri-tone"}
-        </span>
-        <span>· Click name above to rename</span>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: glyph management */}
-        <section className="space-y-4">
-          {(project.font_type === "duo" || project.font_type === "tri") && (
-            <PaletteEditor
-              palette={project.palette}
-              onSave={savePalette}
-            />
-          )}
-
+      {/* ── Two-panel body ──────────────────────────────────────────────── */}
+      <div
+        className={[
+          "flex flex-1 gap-5 px-10 pb-10 min-h-0",
+          isBuilding ? "pointer-events-none select-none opacity-60" : "",
+        ].join(" ")}
+        aria-busy={isBuilding}
+      >
+        {/* Left: upload dropzone + glyph grid */}
+        <section className="flex-1 min-w-0 flex flex-col gap-4 overflow-y-auto">
           <Dropzone onFiles={handleFiles} uploading={uploading} />
 
           {project.glyphs.length > 0 && (
-            <div className="card p-4">
-              <h3 className="text-xs uppercase tracking-wider text-text-secondary mb-3">
-                Glyphs ({project.glyphs.length})
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="ht-card">
+              <div className="grid grid-cols-6 gap-3">
                 {project.glyphs.map((g) => (
                   <GlyphCard
                     key={g.id}
                     glyph={g}
                     fontFamily={fontReady ? PROJECT_FONT_FAMILY : null}
-                    lastBuildAt={
-                      project.latest_job?.status === "complete"
-                        ? project.latest_job.completed_at
-                        : null
-                    }
+                    lastBuildAt={isReady ? (job?.completed_at ?? null) : null}
                     fontType={project.font_type}
-                    palette={project.palette}
-                    onDelete={handleDelete}
-                    onRename={handleRename}
-                    onEdit={() => setEditingGlyphId(g.id)}
+                    palette={globalPalette}
+                    isEditing={g.id === editingGlyphId}
+                    iconSize={previewSize}
+                    previewBg={previewBg}
+                    onClick={() =>
+                      setEditingGlyphId(
+                        g.id === editingGlyphId ? null : g.id,
+                      )
+                    }
                   />
                 ))}
               </div>
             </div>
           )}
 
-          <BuildPanel
-            glyphCount={project.glyphs.length}
-            job={job}
-            building={building}
-            onBuild={build}
-          />
-        </section>
-
-        {/* Right: preview */}
-        <section>
-          {isReady && job ? (
-            <FontPreview
-              projectId={projectId}
-              jobId={job.id}
-              fontName={project.name}
-              glyphs={project.glyphs}
-            />
-          ) : isBuilding ? (
-            <div className="card p-12 flex flex-col items-center">
-              <Loader
-                size="lg"
-                label="Building your font…"
-                longWaitMs={20000}
-                longWaitLabel="Almost there — nanoemoji is rasterising glyphs and assembling the COLR table."
-              />
-            </div>
-          ) : project.glyphs.length === 0 ? (
-            <div className="card p-12 text-center">
-              <p className="text-text-secondary text-sm">
-                Upload some SVGs to get started
+          {project.glyphs.length === 0 && (
+            <div className="ht-card flex-1 flex items-center justify-center min-h-[200px]">
+              <p className="text-sm text-ht-ink/50">
+                Upload SVGs to get started
               </p>
             </div>
-          ) : (
-            <UnbuiltPreview project={project} />
           )}
         </section>
-      </div>
-      </div>
 
-      {editingGlyphId &&
-        (() => {
-          const g = project.glyphs.find((x) => x.id === editingGlyphId);
-          if (!g) return null;
-          return (
-            <EditGlyphDialog
+        {/* Right: editing panel */}
+        <aside className="w-[380px] shrink-0 flex flex-col gap-4">
+          {editingGlyph ? (
+            <GlyphEditPanel
+              key={editingGlyph.id}
               projectId={projectId}
-              glyph={g}
+              glyph={editingGlyph}
               siblings={project.glyphs}
               fontType={project.font_type}
+              globalPalette={globalPalette}
+              fontFamily={fontReady ? PROJECT_FONT_FAMILY : null}
+              previewBg={previewBg}
               onClose={() => setEditingGlyphId(null)}
-              onSaved={load}
+              onSaved={async () => {
+                await load();
+                setEditingGlyphId(null);
+              }}
+              onDeleted={async () => {
+                await load();
+                setEditingGlyphId(null);
+              }}
+              onBuild={build}
+              onPaletteChange={setGlobalPalette}
             />
-          );
-        })()}
+          ) : (
+            <ProjectEditPanel
+              projectName={project.name}
+              fontType={project.font_type}
+              previewSize={previewSize}
+              previewBg={previewBg}
+              globalPalette={globalPalette}
+              isReady={isReady}
+              building={building || isBuilding}
+              glyphCount={project.glyphs.length}
+              onSizeChange={setPreviewSize}
+              onBgChange={setPreviewBg}
+              onPaletteChange={setGlobalPalette}
+              onSaveAndBuild={saveAndBuild}
+              onDownload={download}
+            />
+          )}
+        </aside>
+      </div>
     </main>
   );
 }
+
+// ─── Dropzone ────────────────────────────────────────────────────────────────
 
 function Dropzone({
   onFiles,
@@ -412,10 +433,7 @@ function Dropzone({
 
   return (
     <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDrag(true);
-      }}
+      onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
       onDragLeave={() => setDrag(false)}
       onDrop={(e) => {
         e.preventDefault();
@@ -423,9 +441,13 @@ function Dropzone({
         if (e.dataTransfer.files.length > 0) onFiles(e.dataTransfer.files);
       }}
       onClick={() => ref.current?.click()}
-      className={`card p-8 text-center cursor-pointer transition-colors ${
-        drag ? "border-accent bg-bg-hover" : "hover:border-border-strong"
-      }`}
+      className={[
+        "rounded-ht-xl border-2 border-dashed p-8 text-center cursor-pointer",
+        "transition-colors duration-200 ease-in-out",
+        drag
+          ? "border-ht-ink bg-ht-surface"
+          : "border-ht-line/40 hover:border-ht-line bg-ht-surface/50",
+      ].join(" ")}
     >
       <input
         ref={ref}
@@ -438,14 +460,22 @@ function Dropzone({
           e.target.value = "";
         }}
       />
-      <Upload size={24} className="mx-auto mb-2 text-text-muted" />
-      <p className="text-sm text-text-secondary">
-        {uploading ? "Uploading…" : "Drop SVGs here or click to upload"}
-      </p>
-      <p className="text-xs text-text-muted mt-1">Multiple files supported</p>
+      <div className="flex flex-col items-center gap-3">
+        <span className="size-9 rounded-lg bg-ht-lime flex items-center justify-center">
+          <HueIcon glyph="upload" size={20} palette="ink" />
+        </span>
+        <div>
+          <p className="text-sm font-medium text-ht-ink">
+            {uploading ? "Uploading…" : "Drag SVG's here or click to upload"}
+          </p>
+          <p className="text-xs text-ht-ink/50 mt-0.5">Multiple files supported</p>
+        </div>
+      </div>
     </div>
   );
 }
+
+// ─── Glyph card ──────────────────────────────────────────────────────────────
 
 function GlyphCard({
   glyph,
@@ -453,51 +483,37 @@ function GlyphCard({
   lastBuildAt,
   fontType,
   palette,
-  onDelete,
-  onRename,
-  onEdit,
+  isEditing,
+  iconSize,
+  previewBg,
+  onClick,
 }: {
   glyph: Glyph;
   fontFamily: string | null;
   lastBuildAt: string | null;
-  fontType: "illustration" | "duo" | "tri";
+  fontType: FontType;
   palette: string[];
-  onDelete: (id: string) => void;
-  onRename: (id: string, newName: string) => void | Promise<void>;
-  onEdit: () => void;
+  isEditing: boolean;
+  iconSize: number;
+  previewBg: string;
+  onClick: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(glyph.name);
+  const [hovered, setHovered] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Keep draft in sync if parent reloads project data
-  useEffect(() => {
-    if (!editing) setDraft(glyph.name);
-  }, [glyph.name, editing]);
-
-  // Decide if this glyph is in the most recent build
   const isInCurrentBuild =
     !!fontFamily &&
     !!lastBuildAt &&
     new Date(glyph.created_at).getTime() <= new Date(lastBuildAt).getTime();
 
-  // For duo/tri-tone projects we recolour the SVG client-side so the preview
-  // matches what the build will produce.
+  // Recolour SVG preview for duo/tri before build
   useEffect(() => {
-    if (isInCurrentBuild) {
-      setPreviewUrl(null);
-      return;
-    }
-    if (!glyph.svg_url) {
-      setPreviewUrl(null);
-      return;
-    }
+    if (isInCurrentBuild) { setPreviewUrl(null); return; }
+    if (!glyph.svg_url) { setPreviewUrl(null); return; }
     if (fontType === "illustration" || palette.length === 0) {
       setPreviewUrl(glyph.svg_url);
       return;
     }
-
     let cancelled = false;
     (async () => {
       try {
@@ -509,392 +525,553 @@ function GlyphCard({
         if (!cancelled) setPreviewUrl(glyph.svg_url ?? null);
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isInCurrentBuild,
-    glyph.svg_url,
-    fontType,
-    palette.join(","),
-  ]);
-
-  function commit() {
-    const next = draft.trim();
-    if (!next || next === glyph.name) {
-      setDraft(glyph.name);
-      setEditing(false);
-      return;
-    }
-    onRename(glyph.id, next);
-    setEditing(false);
-  }
+    return () => { cancelled = true; };
+  }, [isInCurrentBuild, glyph.svg_url, fontType, palette.join(",")]);
 
   const codepointChar = String.fromCodePoint(parseInt(glyph.codepoint, 16));
+  const clampedSize = Math.min(iconSize, 72); // clamp for card display
 
   return (
-    <div className="group relative bg-bg-hover rounded-lg p-3 flex flex-col items-center text-center">
-      {/* Action buttons (hover) */}
-      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={onEdit}
-          className="p-1 rounded hover:bg-bg text-text-secondary hover:text-text-primary"
-          title="Edit glyph"
-        >
-          <Pencil size={11} />
-        </button>
-        <button
-          onClick={() => onDelete(glyph.id)}
-          className="p-1 rounded hover:bg-red-950 text-red-400"
-          title="Delete"
-        >
-          <Trash2 size={11} />
-        </button>
-      </div>
-
-      {/* Glyph thumbnail:
-          - In current build → render from the font
-          - Else if SVG preview available → render SVG (recoloured for duo/tri)
-          - Else placeholder
-       */}
-      <div className="h-14 w-full flex items-center justify-center mb-1.5 relative">
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={[
+        "relative flex flex-col items-center gap-1.5 p-2 rounded-ht-lg text-center",
+        "border transition-colors duration-200 ease-in-out",
+        isEditing
+          ? "bg-ht-lime border-ht-ink"
+          : "bg-ht-surface border-transparent hover:border-ht-line",
+      ].join(" ")}
+    >
+      {/* Icon area */}
+      <div
+        className="w-full rounded-ht-md flex items-center justify-center overflow-hidden"
+        style={{ height: 72, background: isEditing ? "transparent" : previewBg }}
+      >
         {isInCurrentBuild ? (
-          <span
-            style={{ fontFamily: fontFamily!, fontSize: "48px", lineHeight: 1 }}
-          >
+          <span style={{ fontFamily: fontFamily!, fontSize: clampedSize, lineHeight: 1 }}>
             {codepointChar}
           </span>
         ) : previewUrl ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt={glyph.name}
-              className="h-12 w-12 object-contain"
-              loading="lazy"
-            />
-            {fontFamily && (
-              <span
-                className="absolute top-0 right-0 text-[9px] text-yellow-400/90 px-1 rounded-sm"
-                title="This glyph isn't in the last build — rebuild to include it"
-              >
-                ●
-              </span>
-            )}
-          </>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl}
+            alt={glyph.name}
+            style={{ width: clampedSize, height: clampedSize }}
+            className="object-contain"
+            loading="lazy"
+          />
         ) : (
-          <span className="text-[10px] text-text-muted leading-tight px-2 text-center">
-            Preview available after build
+          <span className="text-[9px] text-ht-ink/40 leading-tight px-1 text-center">
+            Build to preview
           </span>
         )}
       </div>
 
-      {/* Name (click or pencil to edit) */}
-      {editing ? (
-        <input
-          ref={inputRef}
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            if (e.key === "Escape") {
-              setDraft(glyph.name);
-              setEditing(false);
-            }
-          }}
-          className="w-full text-xs font-medium text-center bg-bg border border-accent rounded px-1.5 py-0.5 outline-none"
-        />
-      ) : (
-        <button
-          onClick={() => {
-            setEditing(true);
-            setTimeout(() => inputRef.current?.select(), 0);
-          }}
-          className="text-xs font-medium truncate w-full hover:text-accent cursor-text"
-          title="Click to rename"
+      {/* Hover / editing overlay label */}
+      {(hovered || isEditing) && (
+        <div
+          className={[
+            "absolute top-1.5 left-1/2 -translate-x-1/2",
+            "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
+            isEditing
+              ? "bg-ht-ink text-ht-white"
+              : "bg-ht-white text-ht-ink shadow-ht-soft border border-ht-line",
+          ].join(" ")}
         >
-          {glyph.name}
-        </button>
+          <Pencil size={9} />
+          {isEditing ? "Editing" : "Edit"}
+        </div>
       )}
-      <p className="text-[10px] text-text-muted font-mono mt-0.5">
-        U+{glyph.codepoint}
+
+      {/* Name + codepoint */}
+      <p className="text-[10px] font-medium text-ht-ink truncate w-full">
+        {glyph.name}
       </p>
-    </div>
+      <p className="text-[9px] text-ht-ink/50 font-mono">
+        {glyph.codepoint.toUpperCase()}
+      </p>
+    </button>
   );
 }
 
-function BuildPanel({
-  glyphCount,
-  job,
+// ─── Project edit panel (right, no glyph selected) ───────────────────────────
+
+function ProjectEditPanel({
+  projectName,
+  fontType,
+  previewSize,
+  previewBg,
+  globalPalette,
+  isReady,
   building,
-  onBuild,
+  glyphCount,
+  onSizeChange,
+  onBgChange,
+  onPaletteChange,
+  onSaveAndBuild,
+  onDownload,
 }: {
-  glyphCount: number;
-  job: FontJob | null;
+  projectName: string;
+  fontType: FontType;
+  previewSize: number;
+  previewBg: string;
+  globalPalette: string[];
+  isReady: boolean;
   building: boolean;
-  onBuild: () => void;
+  glyphCount: number;
+  onSizeChange: (v: number) => void;
+  onBgChange: (v: string) => void;
+  onPaletteChange: (p: string[]) => void;
+  onSaveAndBuild: () => void;
+  onDownload: (fmt: "ttf" | "woff2") => void;
 }) {
-  const isProcessing = job && ["queued", "processing"].includes(job.status);
-  const isReady = job?.status === "complete";
-  const isFailed = job?.status === "failed";
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDownloadMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-medium">Build font</h3>
-          <p className="text-xs text-text-muted mt-1">
-            {isProcessing
-              ? "Processing — this takes ~30s"
-              : isReady
-                ? "Last build succeeded"
-                : isFailed
-                  ? "Last build failed"
-                  : `${glyphCount} glyph${glyphCount === 1 ? "" : "s"} ready`}
-          </p>
+    <div className="ht-card flex flex-col gap-6 flex-1">
+      <h2 className="text-base font-semibold text-ht-ink">
+        Editing {projectName}
+      </h2>
+
+      {/* Size slider */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm text-ht-ink">Size</span>
+          <span className="text-sm text-ht-ink/60">{previewSize}px</span>
         </div>
+        <input
+          type="range"
+          min={40}
+          max={200}
+          value={previewSize}
+          onChange={(e) => onSizeChange(parseInt(e.target.value))}
+          className="w-full h-8 rounded-full cursor-pointer appearance-none"
+          style={{ accentColor: "#eefa94" }}
+        />
+      </div>
+
+      {/* Type Colours — duo/tri only */}
+      {(fontType === "duo" || fontType === "tri") && globalPalette.length > 0 && (
+        <div>
+          <p className="text-sm text-ht-ink mb-3">Type Colours</p>
+          <div className="flex flex-wrap gap-3">
+            {globalPalette.map((c, i) => (
+              <label key={i} className="cursor-pointer">
+                <input
+                  type="color"
+                  value={c}
+                  onChange={(e) => {
+                    const next = [...globalPalette];
+                    next[i] = e.target.value;
+                    onPaletteChange(next);
+                  }}
+                  className="sr-only"
+                />
+                <span
+                  className="block size-12 rounded-full border-2 border-ht-line/30 hover:border-ht-ink transition-colors duration-200 ease-in-out shadow-sm"
+                  style={{ backgroundColor: c }}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Background */}
+      <div>
+        <p className="text-sm text-ht-ink mb-3">Background</p>
+        <label className="cursor-pointer">
+          <input
+            type="color"
+            value={previewBg}
+            onChange={(e) => onBgChange(e.target.value)}
+            className="sr-only"
+          />
+          <span
+            className="block size-12 rounded-full border-2 border-ht-line/30 hover:border-ht-ink transition-colors duration-200 ease-in-out shadow-sm"
+            style={{ backgroundColor: previewBg }}
+          />
+        </label>
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Save + Download */}
+      <div className="flex gap-3">
+        {/* Save = build */}
         <button
-          onClick={onBuild}
-          disabled={building || !!isProcessing || glyphCount === 0}
-          className="btn-primary"
+          onClick={onSaveAndBuild}
+          disabled={building || glyphCount === 0}
+          className="flex-1 ht-btn bg-ht-white border border-ht-line text-ht-ink py-4 hover:border-ht-ink transition-colors duration-200 ease-in-out disabled:opacity-40"
         >
-          {building || isProcessing ? (
+          {building ? (
             <>
-              <span className="inline-block w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />{" "}
-              Building
-            </>
-          ) : isReady ? (
-            <>
-              <Check size={14} /> Rebuild
+              <span className="inline-block w-3 h-3 rounded-full border-2 border-ht-ink border-t-transparent animate-spin" />
+              Saving…
             </>
           ) : (
             <>
-              <Hammer size={14} /> Build
+              <HueIcon glyph="swap" size={16} palette="ink" />
+              Save
             </>
           )}
         </button>
+
+        {/* Download dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowDownloadMenu((v) => !v)}
+            disabled={!isReady}
+            className="ht-btn bg-ht-ink text-ht-white py-4 px-5 hover:opacity-90 transition-opacity disabled:opacity-40 gap-2"
+          >
+            <HueIcon glyph="download" size={16} palette="light-lime" />
+            Download
+            <ChevronDown size={14} className={`transition-transform duration-200 ${showDownloadMenu ? "rotate-180" : ""}`} />
+          </button>
+          {showDownloadMenu && (
+            <div className="absolute bottom-full mb-2 right-0 bg-ht-white rounded-ht-md shadow-ht-card border border-ht-line overflow-hidden min-w-[140px]">
+              {(["ttf", "woff2"] as const).map((fmt) => (
+                <button
+                  key={fmt}
+                  onClick={() => { onDownload(fmt); setShowDownloadMenu(false); }}
+                  className="w-full text-left px-4 py-3 text-sm text-ht-ink hover:bg-ht-surface transition-colors duration-150 uppercase font-mono tracking-wider"
+                >
+                  .{fmt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      {isFailed && job?.error_message && (
-        <pre className="mt-3 text-[10px] text-red-400 bg-bg overflow-auto max-h-32 p-2 rounded">
-          {job.error_message.slice(0, 800)}
-        </pre>
-      )}
     </div>
   );
 }
 
-function UnbuiltPreview({ project }: { project: ProjectDetail }) {
-  const [size, setSize] = useState(96);
+// ─── Glyph edit panel (right, single icon selected) ──────────────────────────
 
-  const noteText =
-    project.font_type === "duo" || project.font_type === "tri"
-      ? "Pre-build preview using your global palette. Hit Build to generate the actual font."
-      : "Pre-build preview from your SVG sources. Hit Build to render them as a real colour font.";
-
-  return (
-    <div className="card p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-xs uppercase tracking-wider text-text-secondary">
-            Sample preview
-          </h3>
-          <p className="text-[10px] text-text-muted mt-0.5">
-            Build the font to enable colour overrides, downloads, and text-drive
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-text-muted">Size</span>
-          <input
-            type="range"
-            min="40"
-            max="200"
-            value={size}
-            onChange={(e) => setSize(parseInt(e.target.value))}
-            className="w-24 accent-accent"
-          />
-        </div>
-      </div>
-
-      <div className="bg-bg rounded-lg p-8 flex flex-wrap gap-6 justify-center min-h-[200px] items-center">
-        {project.glyphs.map((g) => (
-          <UnbuiltGlyphPreview
-            key={g.id}
-            glyph={g}
-            size={size}
-            fontType={project.font_type}
-            palette={project.palette}
-          />
-        ))}
-      </div>
-
-      <p className="text-[11px] text-text-muted mt-4 leading-relaxed">
-        {noteText}
-      </p>
-    </div>
-  );
-}
-
-function UnbuiltGlyphPreview({
+function GlyphEditPanel({
+  projectId,
   glyph,
-  size,
+  siblings,
   fontType,
-  palette,
+  globalPalette,
+  fontFamily,
+  previewBg,
+  onClose,
+  onSaved,
+  onDeleted,
+  onBuild,
+  onPaletteChange,
 }: {
+  projectId: string;
   glyph: Glyph;
-  size: number;
-  fontType: "illustration" | "duo" | "tri";
-  palette: string[];
+  siblings: Glyph[];
+  fontType: FontType;
+  globalPalette: string[];
+  fontFamily: string | null;
+  previewBg: string;
+  onClose: () => void;
+  onSaved: () => void;
+  onDeleted: () => void;
+  onBuild: () => void;
+  onPaletteChange: (p: string[]) => void;
 }) {
-  const [recolouredUrl, setRecolouredUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [name, setName] = useState(glyph.name);
+  const [codepoint, setCodepoint] = useState(glyph.codepoint);
+  const [svgText, setSvgText] = useState<string | null>(null);
+  const [svgColours, setSvgColours] = useState<string[]>([]);
+  const [editedColours, setEditedColours] = useState<string[]>([]);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
 
-  // For duo/tri-tone, fetch the SVG, recolour it client-side, and embed as data URL
+  // Fetch and parse SVG colours on mount (illustration only)
   useEffect(() => {
+    if (fontType !== "illustration" || !glyph.svg_url) return;
     let cancelled = false;
-
-    if (fontType === "illustration" || !glyph.svg_url || palette.length === 0) {
-      setRecolouredUrl(null);
-      return;
-    }
-
     (async () => {
       try {
         const res = await fetch(glyph.svg_url!);
         const text = await res.text();
         if (cancelled) return;
-        setRecolouredUrl(svgToDataUrl(recolourSvg(text, palette)));
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
+        setSvgText(text);
+        const colours = extractSvgColours(text);
+        setSvgColours(colours);
+        setEditedColours(colours);
+      } catch { /* silent */ }
     })();
+    return () => { cancelled = true; };
+  }, [glyph.svg_url, fontType]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [glyph.svg_url, fontType, palette.join(",")]);
+  const codepointChar = String.fromCodePoint(parseInt(glyph.codepoint, 16));
+  const isBuilt = !!fontFamily;
 
-  const src =
-    fontType !== "illustration" && recolouredUrl ? recolouredUrl : glyph.svg_url;
+  // Validation
+  const siblingNames = new Set(
+    siblings.filter((g) => g.id !== glyph.id).map((g) => g.name.toLowerCase()),
+  );
+  const siblingCodepoints = new Set(
+    siblings.filter((g) => g.id !== glyph.id).map((g) => g.codepoint.toUpperCase()),
+  );
+  const nameError =
+    !name.trim()
+      ? "Required"
+      : siblingNames.has(name.trim().toLowerCase())
+        ? "Already used"
+        : null;
+  const cpRaw = codepoint.trim().replace(/^u\+/i, "");
+  const cpNum = parseInt(cpRaw, 16);
+  const codepointError =
+    !cpRaw
+      ? "Required"
+      : !/^[0-9a-fA-F]+$/.test(cpRaw)
+        ? "Must be hex"
+        : cpNum < 0xe001 || cpNum > 0xf8ff
+          ? "Must be E001–F8FF"
+          : siblingCodepoints.has(cpRaw.toUpperCase().padStart(4, "0"))
+            ? "Already used"
+            : null;
 
-  if (failed || !src) {
-    return (
-      <div
-        className="flex flex-col items-center gap-1 text-text-muted"
-        style={{ width: size }}
-      >
-        <div
-          className="border border-dashed border-border rounded flex items-center justify-center text-[9px] text-text-muted text-center px-1"
-          style={{ width: size, height: size }}
-        >
-          Preview available after build
-        </div>
-        <span className="text-[10px] truncate w-full text-center">
-          {glyph.name}
-        </span>
-      </div>
-    );
+  async function handleReplaceSvg(file: File) {
+    setError(null);
+    const result = await validateSvgFile(file, fontType);
+    if (!result.ok) { setError(result.error); return; }
+    setPendingFile(file);
+    // Update local SVG preview for illustration colour editing
+    if (fontType === "illustration") {
+      const text = await file.text();
+      setSvgText(text);
+      const colours = extractSvgColours(text);
+      setSvgColours(colours);
+      setEditedColours(colours);
+    }
   }
 
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={glyph.name}
-        width={size}
-        height={size}
-        style={{ width: size, height: size }}
-        className="object-contain"
-        loading="lazy"
-      />
-      <span className="text-[10px] text-text-muted truncate" style={{ maxWidth: size }}>
-        {glyph.name}
-      </span>
-    </div>
-  );
-}
-
-function PaletteEditor({
-  palette,
-  onSave,
-}: {
-  palette: string[];
-  onSave: (palette: string[]) => Promise<void>;
-}) {
-  const [draft, setDraft] = useState<string[]>(palette);
-  const [saving, setSaving] = useState(false);
-
-  // Sync when project palette refreshes from server
-  useEffect(() => {
-    setDraft(palette);
-  }, [palette]);
-
-  const dirty = draft.some((c, i) => c !== palette[i]);
-
-  async function save() {
+  async function saveAndClose() {
+    if (nameError || codepointError) return;
     setSaving(true);
+    setError(null);
     try {
-      await onSave(draft);
+      // 1. Update metadata
+      await api.updateGlyph(projectId, glyph.id, {
+        name: name.trim(),
+        codepoint: cpRaw.toUpperCase().padStart(4, "0"),
+      });
+
+      // 2. For illustration: apply colour edits to SVG and re-upload
+      if (fontType === "illustration" && svgText) {
+        const coloursDirty = editedColours.some((c, i) => c !== svgColours[i]);
+        if (coloursDirty) {
+          let modified = svgText;
+          svgColours.forEach((orig, i) => {
+            if (editedColours[i] !== orig) {
+              modified = replaceSvgColour(modified, orig, editedColours[i]);
+            }
+          });
+          const blob = new Blob([modified], { type: "image/svg+xml" });
+          const file = new File([blob], `${name}.svg`, { type: "image/svg+xml" });
+          await api.replaceGlyphSvg(projectId, glyph.id, file);
+        }
+      }
+
+      // 3. Replace SVG if user picked a new file
+      if (pendingFile) {
+        await api.replaceGlyphSvg(projectId, glyph.id, pendingFile);
+      }
+
+      // 4. For duo/tri: colour swatches == global palette, save it
+      if (fontType !== "illustration") {
+        await api.updateProject(projectId, {
+          name: glyph.name, // project name fetched from parent — we just pass current
+          description: "",
+          font_type: fontType,
+          palette: globalPalette,
+        });
+      }
+
+      // 5. Build
+      await onBuild();
+      onSaved();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
     }
   }
 
+  async function deleteGlyph() {
+    if (!confirm(`Delete "${glyph.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await api.deleteGlyph(projectId, glyph.id);
+      onDeleted();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+      setDeleting(false);
+    }
+  }
+
+  // Colours to show: illustration → per-icon extracted, duo/tri → global palette
+  const displayColours =
+    fontType === "illustration" ? editedColours : globalPalette;
+
+  function updateColour(i: number, val: string) {
+    if (fontType === "illustration") {
+      const next = [...editedColours];
+      next[i] = val;
+      setEditedColours(next);
+    } else {
+      const next = [...globalPalette];
+      next[i] = val;
+      onPaletteChange(next);
+    }
+  }
+
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs uppercase tracking-wider text-text-secondary">
-          Global palette
-        </h3>
-        {dirty && (
-          <span className="text-[10px] text-yellow-400">
-            Rebuild needed to apply
-          </span>
+    <div className="ht-card flex flex-col gap-5 flex-1">
+      {/* Header: icon preview + title */}
+      <div className="flex items-center gap-3">
+        <div
+          className="size-10 rounded-ht-md flex items-center justify-center shrink-0"
+          style={{ background: previewBg }}
+        >
+          {isBuilt ? (
+            <span style={{ fontFamily: fontFamily!, fontSize: 28, lineHeight: 1 }}>
+              {codepointChar}
+            </span>
+          ) : glyph.svg_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={glyph.svg_url} alt={name} className="w-7 h-7 object-contain" />
+          ) : null}
+        </div>
+        <h2 className="text-base font-semibold text-ht-ink">
+          Editing {name || glyph.name}
+        </h2>
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-ht-md px-3 py-2">
+          {error}
+        </p>
+      )}
+
+      {/* Name */}
+      <div>
+        <label className="text-xs text-ht-ink/60 block mb-1.5">Name</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={`ht-input ${nameError ? "border-red-400" : ""}`}
+          placeholder="e.g. heart"
+        />
+        {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
+      </div>
+
+      {/* Unicode */}
+      <div>
+        <label className="text-xs text-ht-ink/60 block mb-1.5">Unicode</label>
+        <input
+          value={codepoint}
+          onChange={(e) => setCodepoint(e.target.value)}
+          className={`ht-input font-mono ${codepointError ? "border-red-400" : ""}`}
+          placeholder="e.g. E001"
+        />
+        {codepointError && (
+          <p className="text-xs text-red-500 mt-1">{codepointError}</p>
         )}
       </div>
-      <div className="flex flex-wrap gap-3">
-        {draft.map((c, i) => (
-          <div key={i} className="flex flex-col items-center gap-1">
-            <input
-              type="color"
-              value={c}
-              onChange={(e) => {
-                const next = [...draft];
-                next[i] = e.target.value;
-                setDraft(next);
-              }}
-              className="w-12 h-12 bg-transparent border-0 cursor-pointer rounded"
-            />
-            <span className="text-[10px] text-text-muted font-mono">
-              Layer {i + 1}
-            </span>
+
+      {/* Colours */}
+      {displayColours.length > 0 && (
+        <div>
+          <p className="text-xs text-ht-ink/60 mb-2">Colours</p>
+          <div className="flex flex-wrap gap-2">
+            {displayColours.map((c, i) => (
+              <label key={i} className="cursor-pointer" title={c}>
+                <input
+                  type="color"
+                  value={c}
+                  onChange={(e) => updateColour(i, e.target.value)}
+                  className="sr-only"
+                />
+                <span
+                  className="block size-10 rounded-full border-2 border-ht-line/30 hover:border-ht-ink transition-colors duration-200 ease-in-out shadow-sm"
+                  style={{ backgroundColor: c }}
+                />
+              </label>
+            ))}
           </div>
-        ))}
-      </div>
-      {dirty && (
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={save}
-            disabled={saving}
-            className="btn-primary text-xs"
-          >
-            {saving ? "Saving…" : "Save palette"}
-          </button>
-          <button
-            onClick={() => setDraft(palette)}
-            className="btn-ghost text-xs"
-          >
-            Discard
-          </button>
         </div>
       )}
-      <p className="text-[10px] text-text-muted mt-3 leading-relaxed">
-        These colours apply at build time. After saving, hit Build to regenerate
-        all glyphs with the new palette.
-      </p>
+
+      {/* Replace SVG */}
+      <div>
+        <input
+          ref={replaceInputRef}
+          type="file"
+          accept=".svg"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files?.[0]) handleReplaceSvg(e.target.files[0]);
+            e.target.value = "";
+          }}
+        />
+        <button
+          onClick={() => replaceInputRef.current?.click()}
+          className="w-full ht-btn bg-ht-white border border-ht-line text-ht-ink py-4 hover:border-ht-ink transition-colors duration-200 ease-in-out"
+        >
+          <HueIcon glyph="swap" size={16} palette="ink" />
+          {pendingFile ? `Replace: ${pendingFile.name}` : "Replace SVG"}
+        </button>
+      </div>
+
+      <div className="flex-1" />
+
+      {/* Delete + Save & Close */}
+      <div className="flex gap-3">
+        <button
+          onClick={deleteGlyph}
+          disabled={deleting || saving}
+          className="flex-1 ht-btn bg-red-50 border border-red-200 text-red-600 py-4 hover:border-red-400 hover:bg-red-100 transition-colors duration-200 ease-in-out disabled:opacity-40"
+        >
+          <HueIcon glyph="close" size={16} palette="ink" />
+          Delete Icon
+        </button>
+        <button
+          onClick={saveAndClose}
+          disabled={saving || deleting || !!nameError || !!codepointError}
+          className="flex-1 ht-btn bg-ht-ink text-ht-white py-4 hover:opacity-90 transition-opacity disabled:opacity-40"
+        >
+          {saving ? (
+            <>
+              <span className="inline-block w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Check size={14} />
+              Save & Close
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }
