@@ -2,6 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Hue Type icon font (12 glyphs, U+E001–E00C) ─────────────────────── */
+@font-face {
+  font-family: "HueType";
+  src: url("/hue-type.ttf") format("truetype");
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Named palette overrides for in-app icon usage.
+   The font's CPAL has 3 slots: 0=purple, 1=lime, 2=pink (default).
+   Pick the right one per call-site so the icon reads on its background. */
+@font-palette-values --ht-default {
+  font-family: HueType;
+}
+
+/* Exact match to SVG reference designs: light-grey / mid-grey / ink-black */
+@font-palette-values --ht-ref {
+  font-family: HueType;
+  override-colors: 0 #d9d9d9, 1 #b8b7b7, 2 #17181c;
+}
+/* Duo-tone: 0=mid-grey / 1=black / 2=light-grey */
+@font-palette-values --ht-duo {
+  font-family: HueType;
+  override-colors: 0 #b8b7b7, 1 #000000, 2 #d9d9d9;
+}
+/* Arrow / go: 0=black / 1=black / 2=light-grey */
+@font-palette-values --ht-arrow {
+  font-family: HueType;
+  override-colors: 0 #000000, 1 #000000, 2 #b7b7b7;
+}
+/* Brand vivid — used on New Type button hover */
+@font-palette-values --ht-brand {
+  font-family: HueType;
+  override-colors: 0 #e2ec5b, 1 #7c6af5, 2 #ff6b9d;
+}
+/* Inverted for icons on dark (ink) backgrounds */
+@font-palette-values --ht-ref-inv {
+  font-family: HueType;
+  override-colors: 0 #ffffff, 1 #c8c8c8, 2 #eefa94;
+}
+
 @layer base {
   html, body {
     @apply bg-bg text-text-primary;
@@ -13,7 +55,43 @@
   }
 }
 
+/* ── Post-login light theme scope ───────────────────────────────────────
+   Apply `ht-app` on the outer <main> of dashboard / project pages to
+   flip the colour scheme without disturbing the landing page. */
+@layer base {
+  .ht-app {
+    @apply bg-ht-bg text-ht-ink;
+  }
+}
+
 @layer components {
+  /* New light-theme primitives (Figma) */
+  .ht-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-ht-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .ht-btn-primary {
+    @apply ht-btn bg-ht-ink text-ht-white px-10 py-5 hover:opacity-90;
+  }
+  .ht-btn-pill {
+    @apply ht-btn bg-ht-white text-ht-ink px-6 py-5 font-semibold text-base shadow-ht-soft;
+  }
+  .ht-btn-pill-active {
+    @apply ht-btn-pill border border-ht-ink;
+  }
+  .ht-chip {
+    @apply inline-flex items-center bg-ht-lime text-ht-ink rounded-ht-sm px-2.5 py-1.5 text-xs font-normal;
+  }
+  .ht-card {
+    @apply bg-ht-surface rounded-ht-xl p-5;
+  }
+  .ht-card-active {
+    @apply ht-card border border-ht-line;
+  }
+  .ht-input {
+    @apply w-full bg-ht-white border border-ht-surface rounded-ht-md px-4 py-3 text-sm text-ht-ink placeholder:text-ht-ink/40 focus:outline-none focus:border-ht-ink;
+  }
+
+  /* Legacy dark-theme primitives (landing page) */
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }

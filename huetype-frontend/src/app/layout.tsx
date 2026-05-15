@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Albert_Sans } from "next/font/google";
 import "./globals.css";
+
+const albertSans = Albert_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-albert",
+});
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.sunnyallan.design";
@@ -43,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={albertSans.variable}>
       <body>{children}</body>
     </html>
   );

@@ -3,10 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, LogOut, FileText, Palette, Layers, Image as ImageIcon, ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  LogOut,
+  Plus,
+  ArrowLeft,
+  ArrowRight,
+  X,
+} from "lucide-react";
 import { api, type Project, type FontType } from "@/lib/api";
 import { createClient } from "@/lib/supabase-browser";
 import Loader from "@/components/loader";
+import { Logo } from "@/components/logo";
+import { useProjectFont } from "@/lib/use-project-font";
+import { HueIcon, HUE_ALL, type HuePalette } from "@/components/hue-icon";
+
+type Tab = "active" | "archived";
 
 export default function DashboardClient({ userEmail }: { userEmail: string }) {
   const router = useRouter();
@@ -15,6 +26,7 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
   const [error, setError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [tab, setTab] = useState<Tab>("active");
 
   async function load() {
     setLoading(true);
@@ -56,149 +68,417 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
     router.push("/");
   }
 
-  return (
-    <main className="min-h-screen p-8 max-w-6xl mx-auto">
-      <header className="flex items-center justify-between mb-12">
-        <div>
-          <h1 className="text-2xl font-semibold">Hue Type</h1>
-          <p className="text-text-secondary text-xs mt-1">{userEmail}</p>
-        </div>
-        <button onClick={signOut} className="btn-ghost">
-          <LogOut size={14} /> Sign out
-        </button>
-      </header>
+  const activeProjects = projects;
+  const archivedProjects: Project[] = []; // No archived state in DB yet.
+  const visibleProjects = tab === "active" ? activeProjects : archivedProjects;
 
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-sm uppercase tracking-wider text-text-secondary">
-          Your fonts
-        </h2>
-        <button
-          onClick={() => setShowNew(true)}
-          className="btn-primary"
-        >
-          <Plus size={14} /> New font
-        </button>
+  return (
+    <main className="ht-app min-h-screen relative">
+      {/* ── Logo top-left ────────────────────────────────────────────── */}
+      <div className="absolute top-9 left-12">
+        <Logo size={56} />
       </div>
 
+      {/* ── Page content ─────────────────────────────────────────────── */}
+      <div className="px-[140px] pt-[43px] pb-32">
+        {/* Welcome chip */}
+        <span className="inline-flex items-center bg-ht-lime text-ht-ink font-semibold text-lg rounded-ht-md px-5 py-2.5">
+          Welcome back!
+        </span>
+
+        {/* Hero + CTA row */}
+        <div className="mt-7 flex items-start justify-between gap-8">
+          <h1 className="text-[36px] leading-tight text-ht-ink max-w-2xl">
+            Create hues of icons,
+            <br />
+            illustrations and typography
+          </h1>
+          <NewTypeButton onClick={() => setShowNew(true)} />
+        </div>
+
+        {/* Tabs */}
+        <div className="mt-16 flex items-center gap-3">
+          <button
+            onClick={() => setTab("active")}
+            className={tab === "active" ? "ht-btn-pill-active" : "ht-btn-pill"}
+          >
+            {activeProjects.length} Active
+          </button>
+          <button
+            onClick={() => setTab("archived")}
+            className={tab === "archived" ? "ht-btn-pill-active" : "ht-btn-pill"}
+          >
+            {archivedProjects.length} Archived
+          </button>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mt-6 ht-card text-red-700 text-sm border border-red-300 bg-red-50">
+            {error}
+          </div>
+        )}
+
+        {/* Grid */}
+        <div className="mt-8">
+          {loading ? (
+            <div className="py-24 flex justify-center">
+              <Loader size="md" label="Loading your fonts…" />
+            </div>
+          ) : visibleProjects.length === 0 ? (
+            <EmptyState
+              tab={tab}
+              onCreate={() => setShowNew(true)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+              {visibleProjects.map((p) => (
+                <ProjectCard key={p.id} project={p} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Floating profile (bottom-left) ───────────────────────────── */}
+      <ProfileChip email={userEmail} onSignOut={signOut} />
+
+      {/* ── New Type modal ───────────────────────────────────────────── */}
       {showNew && (
-        <NewFontWizard
+        <NewFontModal
           onCancel={() => setShowNew(false)}
           onCreate={createProject}
           creating={creating}
         />
       )}
-
-      {error && (
-        <div className="card p-4 mb-4 border-red-900 text-red-400 text-sm">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="py-16 flex justify-center">
-          <Loader size="md" label="Loading your fonts…" />
-        </div>
-      ) : projects.length === 0 ? (
-        <div className="card p-12 text-center">
-          <FileText size={32} className="mx-auto mb-3 text-text-muted" />
-          <p className="text-text-secondary text-sm">
-            No fonts yet. Create your first one.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map((p) => (
-            <Link
-              key={p.id}
-              href={`/projects/${p.id}`}
-              className="card p-5 hover:border-border-strong transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-medium truncate">{p.name}</h3>
-                <StatusBadge status={p.status} />
-              </div>
-              {p.description && (
-                <p className="text-text-secondary text-xs mb-3 line-clamp-2">
-                  {p.description}
-                </p>
-              )}
-              <div className="flex items-center justify-between">
-                <p className="text-text-muted text-xs">
-                  {p.glyph_count ?? 0} glyph{p.glyph_count === 1 ? "" : "s"}
-                </p>
-                <FontTypeBadge type={p.font_type} />
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
     </main>
   );
 }
 
-function StatusBadge({ status }: { status: Project["status"] }) {
-  const colors = {
-    draft: "bg-bg-hover text-text-secondary",
-    building: "bg-yellow-950 text-yellow-400",
-    ready: "bg-green-950 text-green-400",
-    error: "bg-red-950 text-red-400",
-  } as const;
+/* ─── New Type button ───────────────────────────────────────────────── */
+function NewTypeButton({ onClick }: { onClick: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={[
+        "ht-btn whitespace-nowrap px-10 py-5 border",
+        "transition-all duration-300 ease-in-out",
+        hovered
+          ? "bg-[#f7f8f8] text-ht-ink border-ht-ink"
+          : "bg-ht-ink text-[#f7f8f8] border-transparent",
+      ].join(" ")}
+    >
+      {/* Two icons stacked — opacity crossfade gives smooth ease */}
+      <span className="relative inline-block" style={{ width: 24, height: 24 }}>
+        <HueIcon
+          glyph="newType"
+          size={24}
+          palette="default"
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: hovered ? 0 : 1,
+            transition: "opacity 300ms ease-in-out",
+          }}
+        />
+        <HueIcon
+          glyph="newType"
+          size={24}
+          palette="brand"
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 300ms ease-in-out",
+          }}
+        />
+      </span>
+      <span className="text-sm font-normal">New Type</span>
+    </button>
+  );
+}
 
+/* ─── Project card ──────────────────────────────────────────────────── */
+function ProjectCard({ project }: { project: Project }) {
+  const font = useProjectFont(project.id);
+  const [hovering, setHovering] = useState(false);
+  const [glyphIdx, setGlyphIdx] = useState(0);
+  const [paletteIdx, setPaletteIdx] = useState(0);
+
+  // Cycle glyph + palette on hover
+  useEffect(() => {
+    if (!hovering || !font || font.glyphs.length === 0) return;
+    const id = setInterval(() => {
+      setGlyphIdx((i) => (i + 1) % font.glyphs.length);
+      setPaletteIdx((i) => (i + 1) % font.paletteVariants.length);
+    }, 450);
+    return () => clearInterval(id);
+  }, [hovering, font]);
+
+  // Reset to first glyph/palette when leaving
+  useEffect(() => {
+    if (!hovering) {
+      setGlyphIdx(0);
+      setPaletteIdx(0);
+    }
+  }, [hovering]);
+
+  const currentGlyph = font?.glyphs[glyphIdx];
+  const glyphChar = currentGlyph
+    ? String.fromCodePoint(parseInt(currentGlyph.codepoint, 16))
+    : null;
+
+  return (
+    <Link
+      href={`/projects/${project.id}`}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      className="ht-card flex items-center gap-[18px] border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out group"
+    >
+      <div className="bg-ht-inner rounded-ht-lg shrink-0 size-[124px] flex items-center justify-center overflow-hidden">
+        {font && glyphChar ? (
+          <span
+            key={glyphIdx + ":" + paletteIdx}
+            className="leading-none transition-opacity duration-200"
+            style={{
+              fontFamily: font.fontFamily,
+              fontPalette: font.paletteVariants[paletteIdx],
+              fontSize: 72,
+            } as React.CSSProperties}
+          >
+            {glyphChar}
+          </span>
+        ) : (
+          <HueTypeFallbackThumb hovering={hovering} />
+        )}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col self-stretch justify-between py-1">
+        <div className="flex items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-base text-ht-ink truncate">
+              {project.name}
+            </p>
+            {project.description && (
+              <p className="text-xs text-ht-ink mt-1 line-clamp-2">
+                {project.description}
+              </p>
+            )}
+          </div>
+          <HueIcon
+            glyph="goArrow"
+            size={14}
+            palette="arrow"
+            className="shrink-0 opacity-70 group-hover:opacity-100 transition-opacity"
+          />
+        </div>
+        <div className="flex items-center gap-1 mt-3">
+          <span className="bg-ht-lime rounded-ht-sm p-1.5 flex items-center justify-center">
+            <FontTypeIcon type={project.font_type} />
+          </span>
+          <span className="ht-chip whitespace-pre">
+            {project.glyph_count ?? 0}  Glyphs
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function HueTypeFallbackThumb({ hovering }: { hovering: boolean }) {
+  // Cycles through the built-in Hue Type glyphs for projects that
+  // don't have their own font built yet.
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (!hovering) {
+      setI(0);
+      return;
+    }
+    const id = setInterval(() => setI((n) => (n + 1) % HUE_ALL.length), 450);
+    return () => clearInterval(id);
+  }, [hovering]);
   return (
     <span
-      className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${colors[status]}`}
+      key={i}
+      style={
+        {
+          fontFamily: "HueType",
+          fontPalette: "--ht-ref",
+          fontSize: 72,
+          lineHeight: 1,
+        } as React.CSSProperties
+      }
     >
-      {status}
+      {HUE_ALL[i]}
     </span>
   );
 }
 
-function FontTypeBadge({ type }: { type: FontType }) {
-  const labels = {
-    illustration: "Illustration",
-    duo: "Duo-tone",
-    tri: "Tri-tone",
-  };
+function FontTypeIcon({ type }: { type: FontType }) {
+  if (type === "duo")
+    return <HueIcon glyph="duoTone" size={16} palette="duo" />;
+  if (type === "illustration")
+    return <HueIcon glyph="illustration" size={16} palette="default" />;
+  return <HueIcon glyph="triTone" size={16} palette="default" />;
+}
+
+/* ─── Empty state ───────────────────────────────────────────────────── */
+function EmptyState({
+  tab,
+  onCreate,
+}: {
+  tab: Tab;
+  onCreate: () => void;
+}) {
+  if (tab === "archived") {
+    return (
+      <div className="ht-card text-center py-16 bg-ht-surface/60">
+        <p className="text-ht-ink/70 text-sm">No archived projects.</p>
+      </div>
+    );
+  }
   return (
-    <span className="text-[9px] uppercase tracking-wider text-text-muted">
-      {labels[type] || type}
-    </span>
+    <div className="ht-card text-center py-16">
+      <p className="text-ht-ink/70 text-sm mb-4">
+        No fonts yet. Create your first one.
+      </p>
+      <button onClick={onCreate} className="ht-btn-primary">
+        <Plus size={18} />
+        <span className="text-sm">New Type</span>
+      </button>
+    </div>
   );
 }
 
+/* ─── Floating profile chip ─────────────────────────────────────────── */
+function ProfileChip({
+  email,
+  onSignOut,
+}: {
+  email: string;
+  onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="fixed bottom-6 left-6 z-40">
+      {open && (
+        <div className="mb-2 bg-ht-white rounded-ht-md shadow-ht-card p-3 min-w-[220px]">
+          <p className="text-xs text-ht-ink/60 px-2 py-1 truncate">{email}</p>
+          <button
+            onClick={onSignOut}
+            className="w-full flex items-center gap-2 text-left px-2 py-2 rounded-lg text-sm text-ht-ink hover:bg-ht-bg"
+          >
+            <LogOut size={14} /> Sign out
+          </button>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="bg-ht-white rounded-ht-md shadow-ht-soft px-6 py-5 flex items-center justify-center"
+        aria-label="Profile"
+        title={email}
+      >
+        <HueIcon glyph="illustration" size={32} palette="ref" />
+      </button>
+    </div>
+  );
+}
+
+/* ─── Type selection card (with icon crossfade on hover) ────────────── */
+function TypeCard({
+  option,
+  onPick,
+}: {
+  option: (typeof TYPE_OPTIONS)[number];
+  onPick: (t: FontType) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={() => onPick(option.type)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="flex items-center gap-4 text-left p-4 rounded-ht-xl bg-ht-surface border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
+    >
+      {/* Icon thumbnail — crossfade between rest and hover palette */}
+      <div className="shrink-0 size-[88px] rounded-ht-lg bg-ht-white flex items-center justify-center relative">
+        <HueIcon
+          glyph={option.glyph}
+          size={56}
+          palette={option.palette}
+          style={{
+            position: "absolute",
+            opacity: hovered ? 0 : 1,
+            transition: "opacity 300ms ease-in-out",
+          }}
+        />
+        <HueIcon
+          glyph={option.glyph}
+          size={56}
+          palette={option.hoverPalette}
+          style={{
+            position: "absolute",
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 300ms ease-in-out",
+          }}
+        />
+      </div>
+      {/* Text */}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-semibold text-ht-ink text-sm mb-1.5">
+          {option.title}
+        </h4>
+        <p className="text-xs text-ht-ink/60 leading-relaxed">{option.body}</p>
+      </div>
+    </button>
+  );
+}
+
+/* ─── New Type modal ────────────────────────────────────────────────── */
 const TYPE_OPTIONS: {
   type: FontType;
   title: string;
   body: string;
-  icon: React.ReactNode;
+  glyph: string;
+  palette: HuePalette;
+  hoverPalette: HuePalette;
 }[] = [
   {
-    type: "illustration",
-    title: "Illustration / emoji",
-    body: "Multi-colour artwork. The colours in your SVGs are baked into the font.",
-    icon: <ImageIcon size={20} />,
-  },
-  {
     type: "duo",
-    title: "Duo-tone icon",
-    body: "Two global colours mapped to layer 1 and layer 2 of every icon.",
-    icon: <Layers size={20} />,
+    title: "Duo-tone",
+    body: "A simple duotone icon font means 2 layers in a single SVG",
+    glyph: "duoTone",
+    palette: "duo",
+    hoverPalette: "brand",
   },
   {
     type: "tri",
-    title: "Tri-tone icon",
-    body: "Three global colours mapped to layers 1, 2, and 3 of every icon.",
-    icon: <Palette size={20} />,
+    title: "Tri-tone",
+    body: "A 3 layered font which means your SVG can have 3 colours",
+    glyph: "triTone",
+    palette: "default",
+    hoverPalette: "brand",
+  },
+  {
+    type: "illustration",
+    title: "Illustration",
+    body: "A multi-colour font where SVG colours are baked directly into the font",
+    glyph: "illustration",
+    palette: "default",
+    hoverPalette: "brand",
   },
 ];
 
 const DEFAULT_PALETTES: Record<FontType, string[]> = {
   illustration: [],
-  duo: ["#1a1a1a", "#7c6af5"],
-  tri: ["#1a1a1a", "#7c6af5", "#ff6b9d"],
+  duo: ["#17181c", "#eefa94"],
+  tri: ["#17181c", "#eefa94", "#ff6b9d"],
 };
 
-function NewFontWizard({
+function NewFontModal({
   onCancel,
   onCreate,
   creating,
@@ -216,7 +496,9 @@ function NewFontWizard({
   const [type, setType] = useState<FontType>("illustration");
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
-  const [palette, setPalette] = useState<string[]>(DEFAULT_PALETTES.illustration);
+  const [palette, setPalette] = useState<string[]>(
+    DEFAULT_PALETTES.illustration,
+  );
 
   function pickType(t: FontType) {
     setType(t);
@@ -229,113 +511,139 @@ function NewFontWizard({
     onCreate({ name, description: desc, font_type: type, palette });
   }
 
-  if (step === 1) {
-    return (
-      <div className="card p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm uppercase tracking-wider text-text-secondary">
-            Step 1 of 2 · Choose font type
-          </h3>
-          <button onClick={onCancel} className="btn-ghost text-xs">
-            Cancel
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {TYPE_OPTIONS.map((o) => (
-            <button
-              key={o.type}
-              onClick={() => pickType(o.type)}
-              className="text-left p-5 rounded-lg border border-border bg-bg-card hover:border-accent hover:bg-bg-hover transition-colors"
-            >
-              <div className="w-9 h-9 rounded-lg bg-accent/10 text-accent flex items-center justify-center mb-3">
-                {o.icon}
-              </div>
-              <h4 className="font-medium mb-1">{o.title}</h4>
-              <p className="text-xs text-text-secondary leading-relaxed">{o.body}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={submit} className="card p-6 mb-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm uppercase tracking-wider text-text-secondary">
-          Step 2 of 2 ·{" "}
-          {type === "illustration"
-            ? "Illustration / emoji"
-            : type === "duo"
-              ? "Duo-tone icon"
-              : "Tri-tone icon"}
-        </h3>
-        <button
-          type="button"
-          onClick={() => setStep(1)}
-          className="btn-ghost text-xs"
-        >
-          <ArrowLeft size={12} /> Change type
-        </button>
-      </div>
+    <div
+      className="fixed inset-0 z-50 bg-ht-ink/30 backdrop-blur-sm flex items-center justify-center p-6"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-ht-bg rounded-ht-xl p-10 max-w-4xl w-full shadow-ht-card"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {step === 1 ? (
+          <>
+            {/* Close */}
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={onCancel}
+                className="text-ht-ink/40 hover:text-ht-ink p-1 transition-colors"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-      <input
-        type="text"
-        placeholder="Font name (e.g. Sunny Icons)"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-        autoFocus
-        className="input"
-      />
-      <input
-        type="text"
-        placeholder="Description (optional)"
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-        className="input"
-      />
+            {/* Chip + heading */}
+            <div className="text-center mb-10">
+              <span className="inline-flex items-center bg-ht-lime text-ht-ink font-semibold text-sm rounded-full px-5 py-2">
+                New Type
+              </span>
+              <h2 className="mt-5 text-[28px] font-normal text-ht-ink leading-snug">
+                Great things start with a spark of creativity
+              </h2>
+            </div>
 
-      {(type === "duo" || type === "tri") && (
-        <div>
-          <label className="text-xs uppercase tracking-wider text-text-secondary block mb-2">
-            Global palette
-          </label>
-          <div className="flex flex-wrap gap-3">
-            {palette.map((c, i) => (
-              <div key={i} className="flex flex-col items-center gap-1">
-                <input
-                  type="color"
-                  value={c}
-                  onChange={(e) => {
-                    const next = [...palette];
-                    next[i] = e.target.value;
-                    setPalette(next);
-                  }}
-                  className="w-12 h-12 bg-transparent border-0 cursor-pointer rounded"
-                />
-                <span className="text-[10px] text-text-muted font-mono">
-                  Layer {i + 1}
-                </span>
+            {/* Type cards */}
+            <div className="grid grid-cols-3 gap-4">
+              {TYPE_OPTIONS.map((o) => (
+                <TypeCard key={o.type} option={o} onPick={pickType} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Step 2 header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-ht-ink">
+                Project details
+              </h2>
+              <button
+                onClick={onCancel}
+                className="text-ht-ink/60 hover:text-ht-ink p-1"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Step 2 form */}
+            <form onSubmit={submit} className="space-y-4">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="text-xs text-ht-ink/60 hover:text-ht-ink inline-flex items-center gap-1"
+              >
+                <ArrowLeft size={12} /> Change type
+              </button>
+
+              <input
+                type="text"
+                placeholder="Font name (e.g. Sunny Icons)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoFocus
+                className="ht-input"
+              />
+              <input
+                type="text"
+                placeholder="Description (optional)"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                className="ht-input"
+              />
+
+              {(type === "duo" || type === "tri") && (
+                <div>
+                  <label className="text-xs uppercase tracking-wider text-ht-ink/60 block mb-2">
+                    Global palette
+                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    {palette.map((c, i) => (
+                      <div key={i} className="flex flex-col items-center gap-1">
+                        <input
+                          type="color"
+                          value={c}
+                          onChange={(e) => {
+                            const next = [...palette];
+                            next[i] = e.target.value;
+                            setPalette(next);
+                          }}
+                          className="w-12 h-12 bg-transparent border-0 cursor-pointer rounded"
+                        />
+                        <span className="text-[10px] text-ht-ink/60 font-mono">
+                          Layer {i + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-ht-ink/60 mt-3 leading-relaxed">
+                    Editable anytime — rebuild applies new colours to all glyphs.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="ht-btn-primary"
+                >
+                  {creating ? "Creating…" : "Create font"}{" "}
+                  <ArrowRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="text-sm text-ht-ink/60 hover:text-ht-ink px-4"
+                >
+                  Cancel
+                </button>
               </div>
-            ))}
-          </div>
-          <p className="text-[11px] text-text-muted mt-3 leading-relaxed">
-            When you upload an SVG, its first fill colour becomes Layer 1, second
-            becomes Layer 2{type === "tri" && ", third becomes Layer 3"}. Editable
-            anytime — rebuild applies new colours to all glyphs.
-          </p>
-        </div>
-      )}
-
-      <div className="flex gap-2 pt-2">
-        <button type="submit" disabled={creating} className="btn-primary">
-          {creating ? "Creating…" : "Create font"} <ArrowRight size={12} />
-        </button>
-        <button type="button" onClick={onCancel} className="btn-ghost">
-          Cancel
-        </button>
+            </form>
+          </>
+        )}
       </div>
-    </form>
+    </div>
   );
 }
