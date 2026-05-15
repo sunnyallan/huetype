@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 /**
  * Hue Type icon font — used for in-app iconography.
  *
@@ -22,17 +24,17 @@
  */
 export const HUE = {
   illustration: "",
-  triTone: "",
-  goArrow: "",
-  upload: "",
-  duoTone: "",
-  edit: "",
-  download: "",
-  add: "",
-  remove: "",
-  newType: "",
-  close: "",
-  swap: "",
+  triTone:      "",
+  goArrow:      "",
+  upload:       "",
+  duoTone:      "",
+  edit:         "",
+  download:     "",
+  add:          "",
+  remove:       "",
+  newType:      "",
+  close:        "",
+  swap:         "",
 } as const;
 
 export type HueGlyph = keyof typeof HUE;
@@ -60,6 +62,42 @@ export type HuePalette =
   | "close-hover"
   | "edit-hover";
 
+/**
+ * Simple text/symbol fallbacks rendered when the browser doesn't support
+ * COLR/font-palette (Safari / iOS as of 2026).
+ * These keep the UI functional — buttons remain visible and labelled.
+ */
+const GLYPH_FALLBACK: Record<HueGlyph, string> = {
+  illustration: "◉",
+  triTone:      "◔",
+  goArrow:      "↗",
+  upload:       "↑",
+  duoTone:      "◑",
+  edit:         "✏",
+  download:     "↓",
+  add:          "+",
+  remove:       "✕",
+  newType:      "Aa",
+  close:        "✕",
+  swap:         "⇄",
+};
+
+/**
+ * Detect whether the browser supports `font-palette`.
+ * Returns `true` on SSR (so the server renders the real glyph).
+ * On the client, if Safari/iOS returns false, HueIcon swaps to the
+ * text fallback after first mount — the glyph was invisible anyway.
+ */
+function usePaletteSupport(): boolean {
+  const [supported, setSupported] = useState(true); // SSR default: assume yes
+  useEffect(() => {
+    setSupported(
+      typeof CSS !== "undefined" && CSS.supports("font-palette", "normal"),
+    );
+  }, []);
+  return supported;
+}
+
 export function HueIcon({
   glyph,
   size = 16,
@@ -73,7 +111,36 @@ export function HueIcon({
   className?: string;
   style?: React.CSSProperties;
 }) {
+  const paletteSupported = usePaletteSupport();
   const ch = glyph in HUE ? HUE[glyph as HueGlyph] : (glyph as string);
+
+  // ── Safari / iOS fallback ─────────────────────────────────────────────
+  // COLR/CPAL v1 fonts don't render in Safari. Since the codepoints are in
+  // the Private Use Area there's no OS fallback character either — the glyph
+  // is simply invisible. Show a plain Unicode symbol instead so buttons and
+  // labels remain visible and usable.
+  if (!paletteSupported) {
+    const fb =
+      glyph in GLYPH_FALLBACK
+        ? GLYPH_FALLBACK[glyph as HueGlyph]
+        : (glyph as string);
+    return (
+      <span
+        aria-hidden
+        className={className}
+        style={{
+          fontSize: size,
+          lineHeight: 1,
+          display: "inline-block",
+          ...style,
+        }}
+      >
+        {fb}
+      </span>
+    );
+  }
+
+  // ── Normal COLR render ────────────────────────────────────────────────
   return (
     <span
       aria-hidden
