@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Pencil, Check } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 import { api, type ProjectDetail, type Glyph, type FontType } from "@/lib/api";
 import Loader from "@/components/loader";
 import { Logo } from "@/components/logo";
@@ -926,7 +926,7 @@ function ProjectEditPanel({
             </>
           ) : (
             <>
-              <Check size={14} />
+              <HueIcon glyph="add" size={16} palette="ref" />
               Save
             </>
           )}
@@ -1301,7 +1301,7 @@ function GlyphEditPanel({
             </>
           ) : (
             <>
-              <Check size={14} />
+              <HueIcon glyph="add" size={16} palette="light-lime" />
               Save & Close
             </>
           )}
