@@ -457,7 +457,7 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
                       : "triTone"
                 }
                 size={12}
-                palette={project.font_type === "duo" ? "duo" : project.font_type === "tri" ? "brand" : "default"}
+                palette={project.font_type === "duo" ? "duo" : project.font_type === "tri" ? "ref" : "ref"}
               />
               {project.font_type === "illustration"
                 ? "Illustration"
