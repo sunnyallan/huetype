@@ -34,10 +34,87 @@
   .topbar a { color: var(--ink); text-decoration: none; font-weight: 600; }
   .topbar nav a { font-weight: 400; color: var(--mute); margin-left: 20px; }
   .topbar nav a:hover { color: var(--ink); }
-  main {
-    max-width: 820px;
+  /* Layout: sticky sidebar + main column.
+     On wide screens the sidebar is fixed to the left at 240px wide.
+     On narrow screens it collapses to an inline TOC at the top. */
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    max-width: 1180px;
     margin: 0 auto;
+    gap: 48px;
     padding: 56px 24px 120px;
+    align-items: start;
+  }
+  aside.sidebar {
+    position: sticky;
+    top: 80px;   /* below topbar */
+    align-self: start;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  aside.sidebar strong {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--mute);
+    margin-bottom: 14px;
+  }
+  aside.sidebar ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: toc;
+  }
+  aside.sidebar li {
+    counter-increment: toc;
+    margin: 0;
+  }
+  aside.sidebar a {
+    display: block;
+    padding: 8px 12px;
+    margin: 1px 0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--ink);
+    border-left: 2px solid transparent;
+    transition: background-color 150ms ease-in-out, border-color 150ms ease-in-out;
+  }
+  aside.sidebar a::before {
+    content: counter(toc) ".";
+    color: var(--mute);
+    margin-right: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  aside.sidebar a:hover {
+    background: var(--surface);
+    text-decoration: none;
+  }
+  aside.sidebar a.active {
+    background: var(--white);
+    border-left-color: #7c6af5;
+    color: var(--ink);
+  }
+  main.content {
+    min-width: 0;  /* prevents long <pre> from overflowing the grid */
+    max-width: 820px;
+  }
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    aside.sidebar {
+      position: static;
+      max-height: none;
+      margin-bottom: 32px;
+      padding: 20px 24px;
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
   }
   h1 {
     font-size: 44px;
@@ -115,6 +192,58 @@
   }
   blockquote p { margin: 6px 0; }
   hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
+  /* Illustration figures */
+  figure {
+    margin: 24px 0;
+    padding: 24px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  figcaption {
+    margin-top: 14px;
+    font-size: 13.5px;
+    color: var(--mute);
+    text-align: center;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 700px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+  .pill-good, .pill-bad {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+  }
+  .pill-good { background: #d4f5d4; color: #1a6b1a; }
+  .pill-bad  { background: #f8d7d7; color: #8a1a1a; }
+  .sample-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--ink);
+    color: var(--white) !important;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 8px;
+    text-decoration: none;
+  }
+  .sample-link:hover { opacity: 0.85; text-decoration: none; }
   .toc {
     background: var(--white);
     border: 1px solid var(--line);
@@ -143,28 +272,30 @@
   </nav>
 </div>
 
-<main>
+<div class="layout">
 
-<h1>Colour Font Implementation Guide</h1>
-<p class="lead">A thorough reference for designers and developers using Hue Type's colour fonts — installation, CSS <code>font-palette</code>, SBIX vs COLRv1, browser support, and code examples.</p>
-
-<div class="toc">
+<aside class="sidebar">
   <strong>Contents</strong>
   <ol>
     <li><a href="#produces">What Hue Type produces</a></li>
-    <li><a href="#svg-prep">Preparing SVGs for a colour font</a></li>
+    <li><a href="#svg-prep">Preparing SVGs</a></li>
     <li><a href="#designers">For Designers</a></li>
     <li><a href="#developers">For Developers</a></li>
-    <li><a href="#support">Browser &amp; Platform Support</a></li>
+    <li><a href="#support">Browser support</a></li>
     <li><a href="#sbix-vs-colr">SBIX vs COLRv1</a></li>
-    <li><a href="#safari">Safari &amp; iOS — the full picture</a></li>
-    <li><a href="#safari-production">Safari fallback — the production pattern</a></li>
-    <li><a href="#react">React / Next.js integration</a></li>
-    <li><a href="#size">File size &amp; performance</a></li>
-    <li><a href="#compare">Format comparison table</a></li>
+    <li><a href="#safari">Safari &amp; iOS</a></li>
+    <li><a href="#safari-production">Safari fallback pattern</a></li>
+    <li><a href="#react">React / Next.js</a></li>
+    <li><a href="#size">File size</a></li>
+    <li><a href="#compare">Format comparison</a></li>
     <li><a href="#faq">FAQ</a></li>
   </ol>
-</div>
+</aside>
+
+<main class="content">
+
+<h1>Colour Font Implementation Guide</h1>
+<p class="lead">A thorough reference for designers and developers using Hue Type's colour fonts — installation, CSS <code>font-palette</code>, SBIX vs COLRv1, browser support, and code examples.</p>
 
 <h2 id="produces">1. What Hue Type produces</h2>
 <p>Every build job outputs <strong>three files</strong>:</p>
@@ -192,6 +323,55 @@
     <tr><td><strong>2</strong></td><td>Top (rendered last)</td><td>Foreground detail (lines, dots, glyph faces)</td></tr>
   </tbody>
 </table>
+
+<figure>
+  <svg viewBox="0 0 520 280" xmlns="http://www.w3.org/2000/svg">
+    <!-- Isometric stack of 3 layers showing z-order -->
+    <defs>
+      <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#e6e6e6" stroke-width="0.5"/>
+      </pattern>
+    </defs>
+    <!-- Layer 0 (bottom) -->
+    <g transform="translate(60,180)">
+      <path d="M0,0 L160,0 L200,-40 L40,-40 Z" fill="#d9d9d9" stroke="#999" stroke-width="1"/>
+      <text x="100" y="-12" text-anchor="middle" font-size="14" font-weight="600" fill="#333">Slot 0</text>
+      <text x="100" y="-28" text-anchor="middle" font-size="11" fill="#666">background</text>
+    </g>
+    <!-- Layer 1 (mid) -->
+    <g transform="translate(60,140)">
+      <path d="M0,0 L160,0 L200,-40 L40,-40 Z" fill="#b7b7b7" stroke="#666" stroke-width="1"/>
+      <text x="100" y="-12" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">Slot 1</text>
+      <text x="100" y="-28" text-anchor="middle" font-size="11" fill="#fff">mid layer</text>
+    </g>
+    <!-- Layer 2 (top) -->
+    <g transform="translate(60,100)">
+      <path d="M0,0 L160,0 L200,-40 L40,-40 Z" fill="#17181c"/>
+      <text x="100" y="-12" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">Slot 2</text>
+      <text x="100" y="-28" text-anchor="middle" font-size="11" fill="#ccc">foreground</text>
+    </g>
+    <!-- Z arrow -->
+    <g transform="translate(330,80)">
+      <line x1="0" y1="0" x2="0" y2="140" stroke="#7c6af5" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="14" y="80" font-size="12" fill="#7c6af5" font-weight="600">render order</text>
+      <text x="14" y="98" font-size="11" fill="#666">first → last</text>
+    </g>
+    <defs>
+      <marker id="arr" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#7c6af5"/>
+      </marker>
+    </defs>
+    <!-- Composite result -->
+    <g transform="translate(400,90)">
+      <text x="60" y="-10" text-anchor="middle" font-size="11" fill="#666">composite</text>
+      <circle cx="60" cy="60" r="50" fill="#d9d9d9"/>
+      <circle cx="60" cy="60" r="38" fill="#b7b7b7"/>
+      <path d="M40,40 L80,80 M80,40 L40,80" stroke="#17181c" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <text x="60" y="130" text-anchor="middle" font-size="11" fill="#666">all 3 stacked</text>
+    </g>
+  </svg>
+  <figcaption>Each glyph is a vertical stack of vector shapes. Slot 0 renders first (back), slot 2 renders last (front). CSS <code>font-palette</code> overrides the colour of each slot at runtime — the structure stays fixed.</figcaption>
+</figure>
 
 <h3>How nanoemoji maps your SVG to slots</h3>
 <p>When you upload an SVG to Hue Type, the build pipeline walks every path and groups shapes by their <strong>fill colour</strong>. Each unique fill colour becomes one CPAL slot:</p>
@@ -223,6 +403,137 @@
     2 #ff6b9d;   /* slot 2: was #000000 → now pink   */
 }</code></pre>
 <p>The icon's <strong>structure</strong> stays the same — only the colours change. Ship one SVG, recolour it for dark mode, hover states, brand swaps, etc., without rebuilding the font.</p>
+
+<h3>Three flavours: illustration, duo-tone, tri-tone</h3>
+<p>Hue Type lets you build fonts at three complexity levels depending on how many slots each glyph uses. Pick one consistently per project — mixing flavours in the same font is supported but harder to recolour predictably.</p>
+
+<div class="grid-3">
+  <figure>
+    <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="140" height="140" fill="#f3f3f3"/>
+      <!-- Single filled shape (1 slot) -->
+      <path d="M70,30 L100,90 L40,90 Z" fill="#17181c"/>
+      <path d="M70,30 L100,90 L40,90 Z" fill="#17181c"/>
+      <circle cx="70" cy="105" r="6" fill="#17181c"/>
+    </svg>
+    <figcaption>
+      <strong>Illustration</strong> · 1 slot<br>
+      Monotone silhouette. Best for icons that don't need internal depth — arrows, dots, marks.
+      <br>
+      <a href="/examples/illustration-sample.svg" class="sample-link" download>↓ illustration-sample.svg</a>
+    </figcaption>
+  </figure>
+
+  <figure>
+    <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="140" height="140" fill="#f3f3f3"/>
+      <!-- Slot 0 background -->
+      <circle cx="70" cy="70" r="44" fill="#b7b7b7"/>
+      <!-- Slot 1 inner detail -->
+      <path d="M50,68 L66,84 L92,56" stroke="#17181c" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <figcaption>
+      <strong>Duo-tone</strong> · 2 slots<br>
+      Background plate + foreground accent. Great for filled icons with a clear inner mark — checks, plus, close, edit.
+      <br>
+      <a href="/examples/duo-sample.svg" class="sample-link" download>↓ duo-sample.svg</a>
+    </figcaption>
+  </figure>
+
+  <figure>
+    <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="140" height="140" fill="#f3f3f3"/>
+      <!-- Slot 0 background plate -->
+      <rect x="32" y="34" width="76" height="72" rx="6" fill="#d9d9d9"/>
+      <!-- Slot 1 mid layer -->
+      <rect x="40" y="44" width="60" height="44" rx="3" fill="#7c6af5"/>
+      <!-- Slot 2 top detail -->
+      <circle cx="70" cy="66" r="10" fill="#eefa94"/>
+    </svg>
+    <figcaption>
+      <strong>Tri-tone</strong> · 3 slots<br>
+      Full 3-layer stack — background + mid + foreground. The richest variant; ideal for illustrative icons with depth.
+      <br>
+      <a href="/examples/tri-sample.svg" class="sample-link" download>↓ tri-sample.svg</a>
+    </figcaption>
+  </figure>
+</div>
+<p style="font-size: 14px; color: var(--mute);"><em>Tip:</em> open each sample SVG in a text editor (or Figma) to see exactly how the layers are structured. The fill colours are placeholders — they map to slot 0 / 1 / 2 based on source order.</p>
+
+<h3>Strokes vs filled paths</h3>
+<p>nanoemoji rasterises every shape as a filled path. Strokes (<code>stroke-width</code>, <code>stroke</code>) are technically supported but mapping them to slots is unpredictable — convert all strokes to outlined paths before exporting.</p>
+<div class="grid-2">
+  <figure>
+    <span class="pill-bad">✗ Don't</span>
+    <svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="140" fill="#f3f3f3"/>
+      <!-- Stroke-based circle -->
+      <circle cx="100" cy="70" r="40" fill="none" stroke="#17181c" stroke-width="8"/>
+      <!-- Stroke-based check -->
+      <path d="M80,70 L96,86 L122,58" fill="none" stroke="#17181c" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <figcaption>Strokes — <code>stroke="..."</code> + <code>stroke-width</code>. Ambiguous slot assignment, stroke width changes during font rasterisation.</figcaption>
+  </figure>
+  <figure>
+    <span class="pill-good">✓ Do</span>
+    <svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="140" fill="#f3f3f3"/>
+      <!-- Filled "ring" path -->
+      <path d="M100,30 a40,40 0 1,0 0.01,0 Z M100,42 a28,28 0 1,1 -0.01,0 Z" fill="#17181c" fill-rule="evenodd"/>
+      <!-- Filled "check" path (outlined stroke) -->
+      <path d="M75,68 L82,61 L96,75 L120,51 L127,58 L96,89 Z" fill="#17181c"/>
+    </svg>
+    <figcaption>Filled paths — every shape has a <code>fill="..."</code>, no strokes. Predictable, scales cleanly, slot mapping is deterministic.</figcaption>
+  </figure>
+</div>
+
+<h3>Gradients &amp; transparency — avoid both</h3>
+<div class="grid-2">
+  <figure>
+    <span class="pill-bad">✗ Don't</span>
+    <svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad-bad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#7c6af5"/>
+          <stop offset="100%" stop-color="#ff6b9d"/>
+        </linearGradient>
+      </defs>
+      <rect width="200" height="140" fill="#f3f3f3"/>
+      <circle cx="100" cy="70" r="40" fill="url(#grad-bad)" opacity="0.7"/>
+    </svg>
+    <figcaption>Linear / radial gradients get flattened to a single average colour. Semi-transparency creates ambiguity — nanoemoji can't decide if the alpha is part of the slot or a separate layer.</figcaption>
+  </figure>
+  <figure>
+    <span class="pill-good">✓ Do</span>
+    <svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="140" fill="#f3f3f3"/>
+      <!-- Two solid concentric circles -->
+      <circle cx="100" cy="70" r="40" fill="#7c6af5"/>
+      <circle cx="100" cy="70" r="24" fill="#ff6b9d"/>
+    </svg>
+    <figcaption>Replace gradients with stacked solid fills — each becomes its own slot. To simulate a gradient feel, use 2 or 3 concentric/overlapping shapes with related colours.</figcaption>
+  </figure>
+</div>
+
+<h3>How layers are read from your SVG source</h3>
+<p>nanoemoji reads paths in <strong>document order</strong> — the order they appear in the SVG file's XML. It assigns slot indices to unique fill colours <em>as they first appear</em>. So this:</p>
+<pre><code>&lt;svg viewBox="0 0 24 24"&gt;
+  &lt;!-- First unique fill = slot 0 --&gt;
+  &lt;circle cx="12" cy="12" r="11" fill="#b7b7b7"/&gt;
+
+  &lt;!-- Second unique fill = slot 1 --&gt;
+  &lt;circle cx="12" cy="12" r="9"  fill="#d9d9d9"/&gt;
+
+  &lt;!-- Third unique fill = slot 2 --&gt;
+  &lt;path d="M8,8 L16,16 M16,8 L8,16" fill="#000000"/&gt;
+&lt;/svg&gt;</code></pre>
+<p>…produces a glyph with three slots in that exact order. <strong>If you reorder the elements in the SVG, the slot assignment changes.</strong> Always check the source order matches the z-order you want.</p>
+<p>In Figma: layer panel <em>bottom-to-top</em> corresponds to SVG <em>top-to-bottom</em> (Figma's bottom layer is the SVG's first element). So your Figma layer stack should look like:</p>
+<ul>
+  <li><strong>Top of Figma layer panel</strong> → top in z-order → slot 2 → exported last</li>
+  <li>Middle of Figma layer panel → mid in z-order → slot 1</li>
+  <li><strong>Bottom of Figma layer panel</strong> → back in z-order → slot 0 → exported first</li>
+</ul>
 
 <h3>Design rules for predictable results</h3>
 <ol>
@@ -596,6 +907,31 @@ document.fonts.add(face);</code></pre>
 </div>
 
 </main>
+
+</div><!-- /.layout -->
+
+<script>
+  // Sidebar scroll-spy: highlight the section that's currently visible
+  (function() {
+    const links = document.querySelectorAll('aside.sidebar a');
+    const sections = Array.from(links).map(a => {
+      const id = a.getAttribute('href').slice(1);
+      return { link: a, section: document.getElementById(id) };
+    }).filter(p => p.section);
+
+    function update() {
+      const top = window.scrollY + 120;
+      let active = sections[0];
+      for (const p of sections) {
+        if (p.section.offsetTop <= top) active = p;
+      }
+      links.forEach(l => l.classList.remove('active'));
+      if (active) active.link.classList.add('active');
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('load', update);
+  })();
+</script>
 
 </body>
 </html>

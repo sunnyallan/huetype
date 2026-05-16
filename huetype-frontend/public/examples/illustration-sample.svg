@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hue Type · Illustration sample (1 slot / monotone)
+  ------------------------------------------------------------------
+  ONE unique fill colour → nanoemoji assigns it to slot 0.
+  All shapes use the same colour. Strokes are converted to filled
+  paths (see the arrow head — drawn as a filled polygon, NOT a
+  stroked line).
+  ------------------------------------------------------------------
+-->
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Slot 0 · #17181c (arrow body + head) -->
+  <!-- Arrow shaft as filled rectangle, not a stroke -->
+  <rect x="14" y="29" width="28" height="6" rx="2" fill="#17181c"/>
+  <!-- Arrow head as filled triangle, not a stroke -->
+  <path d="M40,22 L52,32 L40,42 Z" fill="#17181c"/>
+</svg>

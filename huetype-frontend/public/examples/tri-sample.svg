@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hue Type · Tri-tone sample (3 slots)
+  ------------------------------------------------------------------
+  THREE unique fill colours, assigned to slots in source order:
+    slot 0  →  #d9d9d9  (first <rect>    · outer card)
+    slot 1  →  #7c6af5  (second <rect>   · inner panel)
+    slot 2  →  #eefa94  (last  <circle>  · accent dot)
+
+  Notes:
+   - This is the richest variant — three z-layers stacked.
+   - Each layer is a single filled shape. No groups, no transforms
+     except simple translates, no clipping paths.
+   - All strokes converted to outlined paths.
+   - One semantic SVG per icon — name the file by intent
+     (e.g. "card-stack.svg", not "Untitled-3.svg").
+
+  The hex values are placeholders only. At runtime CSS can remap
+  them via @font-palette-values — see /docs.html
+  ------------------------------------------------------------------
+-->
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Slot 0 · #d9d9d9 — outer rounded rectangle (back) -->
+  <rect x="8" y="12" width="48" height="40" rx="5" fill="#d9d9d9"/>
+
+  <!-- Slot 1 · #7c6af5 — inner panel (mid) -->
+  <rect x="14" y="20" width="36" height="24" rx="3" fill="#7c6af5"/>
+
+  <!-- Slot 2 · #eefa94 — accent dot (front) -->
+  <circle cx="32" cy="32" r="5" fill="#eefa94"/>
+</svg>
