@@ -152,11 +152,13 @@
   <strong>Contents</strong>
   <ol>
     <li><a href="#produces">What Hue Type produces</a></li>
+    <li><a href="#svg-prep">Preparing SVGs for a colour font</a></li>
     <li><a href="#designers">For Designers</a></li>
     <li><a href="#developers">For Developers</a></li>
     <li><a href="#support">Browser &amp; Platform Support</a></li>
     <li><a href="#sbix-vs-colr">SBIX vs COLRv1</a></li>
     <li><a href="#safari">Safari &amp; iOS — the full picture</a></li>
+    <li><a href="#safari-production">Safari fallback — the production pattern</a></li>
     <li><a href="#react">React / Next.js integration</a></li>
     <li><a href="#size">File size &amp; performance</a></li>
     <li><a href="#compare">Format comparison table</a></li>
@@ -177,7 +179,75 @@
 <p><strong>WOFF2</strong> is the right choice for almost all web use — compressed (~40% smaller than TTF) and supported in all modern Chromium/Gecko browsers.</p>
 <p>The <strong>Safari TTF</strong> contains both COLRv1 colour tables and an <strong>SBIX table</strong> with PNG bitmaps at 20 px, 40 px, 80 px, and 160 px so icons render correctly on every Apple device.</p>
 
-<h2 id="designers">2. For Designers</h2>
+<h2 id="svg-prep">2. Preparing SVGs for a colour font</h2>
+<p class="lead">How the 3-slot palette model works, and how to structure your source SVGs so they recolour predictably.</p>
+
+<h3>The 3-slot CPAL model</h3>
+<p>A COLR / CPAL colour font stores each icon as a <strong>stack of vector shapes</strong>. Each shape is assigned a "slot" in a tiny palette table that ships with the font. Hue Type uses <strong>3 slots</strong> per glyph — that's enough for most icons and keeps the file tiny.</p>
+<table>
+  <thead><tr><th>Slot</th><th>Z-order</th><th>Typical role</th></tr></thead>
+  <tbody>
+    <tr><td><strong>0</strong></td><td>Bottom (rendered first)</td><td>Background / fill plate</td></tr>
+    <tr><td><strong>1</strong></td><td>Middle</td><td>Mid layer / accent</td></tr>
+    <tr><td><strong>2</strong></td><td>Top (rendered last)</td><td>Foreground detail (lines, dots, glyph faces)</td></tr>
+  </tbody>
+</table>
+
+<h3>How nanoemoji maps your SVG to slots</h3>
+<p>When you upload an SVG to Hue Type, the build pipeline walks every path and groups shapes by their <strong>fill colour</strong>. Each unique fill colour becomes one CPAL slot:</p>
+<ul>
+  <li>Slot 0 ← the colour of the <strong>first</strong> shape in your SVG source</li>
+  <li>Slot 1 ← the colour of the next unique shape</li>
+  <li>Slot 2 ← the colour of the next unique shape</li>
+</ul>
+<p>The actual hex values you pick <strong>don't matter for CSS</strong> — they're placeholders. CSS <code>font-palette</code> overrides replace them at runtime. What matters is that you use exactly <strong>three distinct colours</strong>, and that the SVG source order matches the z-order you want.</p>
+
+<h3>Example: a 3-layer "Close" icon</h3>
+<pre><code>&lt;svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"&gt;
+  &lt;!-- Slot 0 — outer circle (background) --&gt;
+  &lt;circle cx="12" cy="12" r="11" fill="#b7b7b7"/&gt;
+
+  &lt;!-- Slot 1 — inner ring (mid layer) --&gt;
+  &lt;circle cx="12" cy="12" r="9"  fill="#d9d9d9"/&gt;
+
+  &lt;!-- Slot 2 — X mark (foreground) --&gt;
+  &lt;path d="M8,8 L16,16 M16,8 L8,16"
+        stroke="#000000" stroke-width="2.5" fill="none"/&gt;
+&lt;/svg&gt;</code></pre>
+<p>Three shapes, three fills, three slots. The font built from this SVG can later be recoloured with any palette — for example brand vivid:</p>
+<pre><code>@font-palette-values --brand {
+  font-family: "MyIcons";
+  override-colors:
+    0 #7c6af5,   /* slot 0: was #b7b7b7 → now purple */
+    1 #e2ec5b,   /* slot 1: was #d9d9d9 → now lime   */
+    2 #ff6b9d;   /* slot 2: was #000000 → now pink   */
+}</code></pre>
+<p>The icon's <strong>structure</strong> stays the same — only the colours change. Ship one SVG, recolour it for dark mode, hover states, brand swaps, etc., without rebuilding the font.</p>
+
+<h3>Design rules for predictable results</h3>
+<ol>
+  <li><strong>Exactly 3 distinct fill colours.</strong> A 4th colour will either be merged into the closest match or rejected.</li>
+  <li><strong>Use placeholder values that are easy to spot in source.</strong> Recommended: <code>#000000</code> / <code>#7c7c7c</code> / <code>#d9d9d9</code>, or pure primary R/G/B. Avoids ambiguity when scanning the SVG.</li>
+  <li><strong>No gradients.</strong> Gradients get flattened to a single fill — usually whichever colour the rasteriser picks as the average. Convert gradients to solid fills before export.</li>
+  <li><strong>Convert strokes to filled paths</strong> (Object → Outline Stroke in Figma / Illustrator). Strokes have ambiguous mapping to slots.</li>
+  <li><strong>Source order matters.</strong> The first shape with colour X establishes that colour's slot index. Reorder layers in your design tool to match the intended z-order before exporting.</li>
+  <li><strong>One icon per SVG, all at the same artboard size.</strong> Hue Type recommends 24×24 or 64×64. The artboard size is the icon's natural "em size".</li>
+  <li><strong>Filename = the icon's semantic name</strong> (<code>download.svg</code>, <code>close.svg</code>, etc.) — these become the glyph names inside the font.</li>
+</ol>
+
+<h3>Figma export checklist</h3>
+<ul>
+  <li>Boolean ops resolved (no compound paths with mixed fills)</li>
+  <li>Strokes outlined → filled paths</li>
+  <li>All fills set to one of your three chosen placeholders</li>
+  <li>Export → SVG → uncheck "Include 'id' attribute" (smaller files), keep "Outline text" if you have text glyphs</li>
+  <li>Drop the 12 (or however many) SVGs as one batch into Hue Type's upload zone</li>
+</ul>
+
+<h3>What CSS designers see</h3>
+<p>Once the font is built, every developer who uses it can recolour your icons live in the browser. They do that with <code>@font-palette-values</code> + the CSS <code>font-palette</code> property — see the <a href="#developers">For Developers</a> section. Your job as the source designer ends at the SVG: pick clean 3-colour layers, structure them in the right z-order, and ship.</p>
+
+<h2 id="designers">3. For Designers</h2>
 
 <h3>Installing on macOS</h3>
 <ol>
@@ -195,7 +265,7 @@
 <h3>Using in Illustrator &amp; other apps</h3>
 <p>Illustrator 2024+, InDesign 2024+, Sketch, and Affinity Designer 2 all support SBIX colour fonts on macOS. After installation: create a text layer → set font → paste the glyph character.</p>
 
-<h2 id="developers">3. For Developers</h2>
+<h2 id="developers">4. For Developers</h2>
 
 <h3>@font-face setup</h3>
 <pre><code>@font-face {
@@ -250,7 +320,7 @@
 <h3>Animations</h3>
 <p>Cycle palettes with <code>setInterval</code> + direct <code>fontPalette</code> updates. For the "active glyph spotlight" effect (one icon lit, others dimmed) toggle opacity + transform on a 350 ms interval. See the Hue Type Loader component for the canonical pattern.</p>
 
-<h2 id="support">4. Browser &amp; Platform Support</h2>
+<h2 id="support">5. Browser &amp; Platform Support</h2>
 <h3>COLRv1 (font-palette CSS)</h3>
 <table>
   <thead><tr><th>Browser</th><th>Version</th><th>Notes</th></tr></thead>
@@ -274,7 +344,7 @@
   </tbody>
 </table>
 
-<h2 id="sbix-vs-colr">5. SBIX vs COLRv1 — explained</h2>
+<h2 id="sbix-vs-colr">6. SBIX vs COLRv1 — explained</h2>
 <h3>COLRv1</h3>
 <p>Stores icons as <strong>layered vector shapes</strong>, each assigned a colour from a CPAL palette table. Infinitely scalable, ~4 KB for 12 icons, fully recolourable via CSS <code>font-palette</code>. Not supported in Safari.</p>
 
@@ -291,7 +361,7 @@
   </tbody>
 </table>
 
-<h2 id="safari">6. Safari &amp; iOS — the full picture</h2>
+<h2 id="safari">7. Safari &amp; iOS — the full picture</h2>
 <p>COLRv1 glyphs in the Private Use Area are <strong>invisible</strong> in Safari and all iOS browsers. The property is parsed (so <code>CSS.supports('font-palette', 'normal')</code> returns <code>true</code> in Safari 15.4+), but rendering produces nothing — and PUA codepoints have no OS fallback glyph.</p>
 
 <h3>Correct detection</h3>
@@ -325,7 +395,128 @@
 <h3>When will Safari support COLRv1?</h3>
 <p>No confirmed timeline as of May 2026. <a href="https://bugs.webkit.org/show_bug.cgi?id=242154">WebKit bug 242154</a> has been open since 2022. Recommendation: design with the SBIX swap so today's Safari users see the same UI, then COLRv1 will activate automatically when WebKit ships support.</p>
 
-<h2 id="react">7. React / Next.js integration</h2>
+<h2 id="safari-production">7. Safari fallback — the production pattern</h2>
+<p class="lead">The exact implementation Hue Type ships today. Use this verbatim if you want pixel-identical icon rendering on Chrome/FF/Edge (COLRv1 + CSS palettes) AND on Safari/iOS (SBIX bitmaps).</p>
+
+<h3>Architecture in 6 steps</h3>
+<ol>
+  <li>Ship two font files: <code>icons.woff2</code> (COLRv1) and <code>icons-safari.ttf</code> (COLRv1 + SBIX)</li>
+  <li>Declare <code>@font-face</code> for the COLR file under family <code>"MyIcons"</code></li>
+  <li>On every page mount, run UA detection</li>
+  <li>If Safari/iOS: load the SBIX file under a <strong>separate</strong> family name <code>"MyIconsSafari"</code> via the <code>FontFace</code> API</li>
+  <li>Toggle a class on <code>&lt;html&gt;</code> (e.g. <code>.no-colr</code>)</li>
+  <li>Two CSS rules under that class do all the work: one swaps the font-family for icon elements, the other substitutes the palette crossfade with a filter transition</li>
+</ol>
+
+<h3>Why a separate family name (not "MyIcons" for both)</h3>
+<p>If you load SBIX under the same family as the COLR face, the browser sees two faces registered for <code>"MyIcons"</code>. WebKit's matching algorithm picks the CSS-declared face (first-declared wins), tries to render PUA glyphs from it, and produces nothing — invisible icons.</p>
+<p>Users describe the symptom as <em>"icons flash on briefly, then vanish after a second"</em> — that's the SBIX renderring for a beat before the COLR face finishes loading and takes over.</p>
+<p>Using <code>"MyIcons"</code> for COLR and <code>"MyIconsSafari"</code> for SBIX eliminates the conflict entirely. A CSS cascade rule under <code>.no-colr</code> flips every icon's <code>font-family</code> to the SBIX one with <code>!important</code>, overriding any inline style.</p>
+
+<h3>Detection — the right way</h3>
+<p><code>CSS.supports('font-palette', 'normal')</code> returns <code>true</code> in Safari 15.4+ even though COLRv1 still renders nothing. You have to UA-sniff:</p>
+<pre><code>export function detectColrSupport(): boolean {
+  if (typeof window === "undefined") return true; // SSR: assume supported
+
+  const ua = navigator.userAgent;
+
+  // iOS always uses WebKit regardless of which browser the user chose
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" &amp;&amp; navigator.maxTouchPoints &gt; 1);
+
+  // macOS Safari — Chrome/Firefox/Edge all include "Safari" in their UA,
+  // so we have to exclude them explicitly
+  const isSafari =
+    /Safari/.test(ua) &amp;&amp;
+    !/Chrome|Chromium|CriOS|FxiOS|EdgA|OPR/.test(ua);
+
+  if (isIOS || isSafari) return false;
+  return CSS.supports("font-palette", "normal");
+}</code></pre>
+
+<h3>Loading the SBIX font + flipping the class</h3>
+<pre><code>let loadStarted = false;
+
+export async function ensureSbixFontLoaded(): Promise&lt;void&gt; {
+  if (typeof window === "undefined" || loadStarted) return;
+  loadStarted = true;
+
+  try {
+    const face = new FontFace(
+      "MyIconsSafari",
+      "url(/fonts/icons-safari.ttf)",
+      { display: "block" },
+    );
+    const loaded = await face.load();
+    document.fonts.add(loaded);
+
+    // Tag &lt;html&gt; so the CSS cascade override kicks in
+    document.documentElement.classList.add("no-colr");
+  } catch {
+    // Font failed to load — UI must still be usable via aria-label /
+    // sibling text on every icon button
+  }
+}</code></pre>
+
+<h3>Mount it once at the root</h3>
+<pre><code>// app/layout.tsx (Next.js)
+import { useEffect } from "react";
+
+function SafariFontInit() {
+  useEffect(() =&gt; {
+    if (!detectColrSupport()) ensureSbixFontLoaded();
+  }, []);
+  return null;
+}
+
+export default function RootLayout({ children }) {
+  return (
+    &lt;html lang="en"&gt;
+      &lt;body&gt;
+        &lt;SafariFontInit /&gt;
+        {children}
+      &lt;/body&gt;
+    &lt;/html&gt;
+  );
+}</code></pre>
+
+<h3>The two CSS rules under <code>.no-colr</code></h3>
+<pre><code>/* 1. Family swap — every glyph element switches to the SBIX face */
+.no-colr .icon-glyph {
+  font-family: "MyIconsSafari" !important;
+}
+
+/* 2. Hover crossfade substitute — SBIX is fixed-colour, so the
+   opacity-crossfade between two named palettes is invisible. A
+   saturate / brightness filter gives equivalent visual feedback. */
+.no-colr .icon-stack {
+  transition: filter 300ms ease-in-out,
+              opacity 300ms ease-in-out,
+              transform 300ms ease-in-out;
+  filter: saturate(0.2) brightness(0.92);
+  opacity: 0.9;
+}
+.no-colr *:hover &gt; .icon-stack,
+.no-colr *:hover .icon-stack,
+.no-colr .icon-stack:hover {
+  filter: none;
+  opacity: 1;
+  transform: scale(1.06);
+}</code></pre>
+<p>Add <code>className="icon-glyph"</code> to every icon span. Wrap any hover-crossfade icon pair in <code>&lt;span class="icon-stack"&gt;...&lt;/span&gt;</code>. That's the entire integration — Chrome users get the real COLR palette crossfade, Safari users get the filter-based equivalent, neither needs any other code path.</p>
+
+<h3>Why <code>!important</code> on the family swap</h3>
+<p>Components typically set <code>font-family: "MyIcons"</code> as an inline style on each icon span. Inline styles have higher specificity than class-targeted CSS — but <code>!important</code> in author CSS wins over a non-<code>!important</code> inline style. That's the only reason it's needed.</p>
+
+<h3>Limitations on Safari</h3>
+<ul>
+  <li><code>font-palette</code> overrides have no visual effect (SBIX is fixed-colour). The runtime palette set in CSS is ignored — glyphs render with the colours baked into the SBIX bitmaps.</li>
+  <li>Therefore the COLR "grey → brand" hover crossfade can't happen on Safari. The filter-based substitute above is the workaround.</li>
+  <li>The SBIX file must include every glyph you reference. If you add a new icon to your COLR font, rebuild the SBIX file too or Safari will render an empty box at that codepoint.</li>
+</ul>
+
+<h2 id="react">9. React / Next.js integration</h2>
 <h3>Loading the font</h3>
 <pre><code>/* app/globals.css */
 @font-face {
@@ -352,7 +543,7 @@ await face.load();
 document.fonts.add(face);</code></pre>
 <p>Note: <code>document.fonts.check()</code> is unreliable for PUA codepoints. Use <code>document.fonts.forEach()</code> + status check instead.</p>
 
-<h2 id="size">8. File size &amp; performance</h2>
+<h2 id="size">10. File size &amp; performance</h2>
 <p>Real measured numbers — 12 COLRv1 glyphs:</p>
 <table>
   <thead><tr><th>Format</th><th>Size</th><th>Requests</th><th>CSS recolour</th></tr></thead>
@@ -365,7 +556,7 @@ document.fonts.add(face);</code></pre>
 </table>
 <p>COLRv1 WOFF2 is <strong>15× smaller than SVGs</strong> and <strong>30× smaller than PNGs</strong> — a single cached request.</p>
 
-<h2 id="compare">9. Format comparison</h2>
+<h2 id="compare">11. Format comparison</h2>
 <table>
   <thead><tr><th>Feature</th><th>SVG</th><th>PNG</th><th>COLRv1</th><th>SBIX</th></tr></thead>
   <tbody>
@@ -381,7 +572,7 @@ document.fonts.add(face);</code></pre>
   </tbody>
 </table>
 
-<h2 id="faq">10. FAQ</h2>
+<h2 id="faq">12. FAQ</h2>
 <h3>Can I make icons monochrome?</h3>
 <p>Override all colour slots with the same value: <code>override-colors: 0 #333, 1 #333, 2 #333;</code></p>
 
