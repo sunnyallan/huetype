@@ -426,7 +426,7 @@ function ProfileButton({
         <HueIcon
           glyph="profile"
           size={32}
-          palette="profile"
+          palette="default"
           style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: active ? 0 : 1 }}
         />
         <HueIcon

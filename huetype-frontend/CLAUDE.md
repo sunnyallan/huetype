@@ -50,7 +50,6 @@ These rules apply to every code change made in this project.
   | `ref-inv`  | #ffffff / #c8c8c8 / #eefa94    | Inverted — icon on dark bg hover      |
   | `mint`     | #b8d4c4 / #e9eeea / #6fbf73    | Soft green, profile/avatar context    |
   | `grey-two` | #17181c / #9aa0a6 / #17181c    | Two-tone dark on any bg               |
-  | `profile`  | #b7b7b7 / #000000 / #d9d9d9    | Profile / account icon at rest        |
 
 ## Theme scoping
 

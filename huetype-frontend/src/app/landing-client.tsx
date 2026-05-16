@@ -323,9 +323,9 @@ button:hover .icon-hover { opacity: 1; }`}</pre>
             <HoverShowcaseCard
               glyph="profile"
               label="Profile"
-              restPalette="profile"
+              restPalette="default"
               hoverPalette="close-hover"
-              note="--ht-profile → --ht-close-hover"
+              note="default → --ht-close-hover"
             />
           </div>
         </div>
