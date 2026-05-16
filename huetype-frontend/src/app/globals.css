@@ -33,13 +33,17 @@
   filter: none;
 }
 
-/* Active icon-font family. Defaults to the COLR HueType for Chrome/FF/Edge.
-   On Safari/iOS, JS sets this to "HueTypeSafari" (the SBIX TTF) — see
-   src/lib/use-colr-support.ts. Using a variable means every consumer can
-   keep writing the same value while the underlying font is swapped at
-   runtime with no rendering conflicts. */
-:root {
-  --ht-font: "HueType";
+/* Icon-font family override for Safari. Every element that renders a
+   HueType glyph gets className="ht-glyph". On Chrome/FF/Edge that class
+   does nothing (font-family is set inline / via component). On Safari,
+   the `.ht-no-colr` ancestor on <html> triggers this rule which swaps
+   the family to the SBIX face. Doing this via CSS cascade (instead of
+   a `var(--ht-font)`) keeps `@font-palette-values` matching reliable in
+   Chrome — that matching has historically been flaky with var()-derived
+   family names. */
+.ht-no-colr .ht-glyph,
+.ht-no-colr .ht-loader-glyph {
+  font-family: "HueTypeSafari" !important;
 }
 
 /* Named palette overrides for in-app icon usage.

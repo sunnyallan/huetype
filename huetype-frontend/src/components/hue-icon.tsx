@@ -87,10 +87,10 @@ export function HueIcon({
   return (
     <span
       aria-hidden
-      className={className}
+      className={`ht-glyph ${className}`.trim()}
       style={
         {
-          fontFamily: 'var(--ht-font, "HueType")',
+          fontFamily: "HueType",
           fontPalette: `--ht-${palette}`,
           fontSize: size,
           lineHeight: 1,

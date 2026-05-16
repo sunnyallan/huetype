@@ -309,9 +309,10 @@ function HueTypeFallbackThumb({ hovering }: { hovering: boolean }) {
   // Shows the newType glyph — changes palette on hover to signal interactivity.
   return (
     <span
+      className="ht-glyph"
       style={
         {
-          fontFamily: 'var(--ht-font, "HueType")',
+          fontFamily: "HueType",
           fontPalette: hovering ? "--ht-brand" : "--ht-ref",
           fontSize: 72,
           lineHeight: 1,
