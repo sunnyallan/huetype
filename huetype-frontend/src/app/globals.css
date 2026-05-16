@@ -103,6 +103,11 @@
   font-family: HueType;
   override-colors: 0 #ffffff, 1 #c8c8c8, 2 #eefa94;
 }
+/* New Type button rest state — light grey / medium grey / black */
+@font-palette-values --ht-newtype {
+  font-family: HueType;
+  override-colors: 0 #d9d9d9, 1 #b7b7b7, 2 #000000;
+}
 
 /* ── Size slider ──────────────────────────────────────────────────────────── */
 /*   Tall pill track. Thumb is a hollow ring — transparent centre lets the   */

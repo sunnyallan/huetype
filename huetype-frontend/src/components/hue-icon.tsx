@@ -67,7 +67,8 @@ export type HuePalette =
   | "brand"
   | "icon"
   | "close-hover"
-  | "edit-hover";
+  | "edit-hover"
+  | "newtype";
 
 export function HueIcon({
   glyph,

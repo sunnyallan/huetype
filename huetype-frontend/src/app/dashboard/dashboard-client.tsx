@@ -173,15 +173,34 @@ function NewTypeButton({ onClick }: { onClick: () => void }) {
       ].join(" ")}
     >
       {/*
-        Icon pinned to --ht-brand explicitly (lime/purple/pink) so the
-        button keeps its original look regardless of what CPAL palette 0
-        is baked into hue-type.ttf — rebuilds of the font file (e.g. when
-        new glyphs are added) can shift the "default" palette colours.
-        Both rest & hover use the same palette; the button background
-        flip is what signals hover state.
+        Rest uses --ht-newtype (grey / mid-grey / black) explicitly — not
+        the font's "default" CPAL 0, which changes whenever hue-type.ttf
+        is rebuilt with new glyphs. Hover crossfades to --ht-brand
+        (lime/purple/pink).
       */}
-      <span className="relative inline-block" style={{ width: 24, height: 24 }}>
-        <HueIcon glyph="newType" size={24} palette="brand" />
+      <span className="relative inline-block ht-icon-stack" style={{ width: 24, height: 24 }}>
+        <HueIcon
+          glyph="newType"
+          size={24}
+          palette="newtype"
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: hovered ? 0 : 1,
+            transition: "opacity 300ms ease-in-out",
+          }}
+        />
+        <HueIcon
+          glyph="newType"
+          size={24}
+          palette="brand"
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 300ms ease-in-out",
+          }}
+        />
       </span>
       <span className="text-sm font-normal">New Type</span>
     </button>
