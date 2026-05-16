@@ -333,13 +333,14 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
     await build();
   }
 
-  async function download(fmt: "ttf" | "woff2") {
+  async function download(fmt: "ttf" | "woff2" | "sbix") {
     if (!project?.latest_job) return;
     try {
       const { url } = await api.getDownloadUrl(projectId, project.latest_job.id, fmt);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${project.name}.${fmt}`;
+      // SBIX downloads as a .ttf file (it's a TTF with an sbix table)
+      a.download = fmt === "sbix" ? `${project.name}-safari.ttf` : `${project.name}.${fmt}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -818,7 +819,7 @@ function ProjectEditPanel({
   onBgChange: (v: string) => void;
   onPaletteChange: (p: string[]) => void;
   onSaveAndBuild: () => void;
-  onDownload: (fmt: "ttf" | "woff2") => void;
+  onDownload: (fmt: "ttf" | "woff2" | "sbix") => void;
 }) {
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -967,14 +968,19 @@ function ProjectEditPanel({
             <ChevronDown size={14} className={`transition-transform duration-200 ${showDownloadMenu ? "rotate-180" : ""}`} />
           </button>
           {showDownloadMenu && (
-            <div className="absolute bottom-full mb-2 right-0 bg-ht-white rounded-ht-md shadow-ht-card border border-ht-line overflow-hidden min-w-[140px]">
-              {(["ttf", "woff2"] as const).map((fmt) => (
+            <div className="absolute bottom-full mb-2 right-0 bg-ht-white rounded-ht-md shadow-ht-card border border-ht-line overflow-hidden min-w-[200px]">
+              {([
+                { fmt: "woff2", label: "WOFF2", sub: "Chrome · Firefox · Edge" },
+                { fmt: "ttf",   label: "TTF",   sub: "Design tools · Chromium" },
+                { fmt: "sbix",  label: "TTF — Safari & iOS", sub: "Safari · iOS · Figma" },
+              ] as const).map(({ fmt, label, sub }) => (
                 <button
                   key={fmt}
                   onClick={() => { onDownload(fmt); setShowDownloadMenu(false); }}
-                  className="w-full text-left px-4 py-3 text-sm text-ht-ink hover:bg-ht-surface transition-colors duration-150 uppercase font-mono tracking-wider"
+                  className="w-full text-left px-4 py-3 hover:bg-ht-surface transition-colors duration-150 border-b border-ht-line last:border-0"
                 >
-                  .{fmt}
+                  <span className="block text-sm font-mono font-medium text-ht-ink tracking-wide">{label}</span>
+                  <span className="block text-xs text-ht-ink/50 mt-0.5">{sub}</span>
                 </button>
               ))}
             </div>

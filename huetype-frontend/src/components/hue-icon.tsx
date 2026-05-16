@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useColrSupport } from "@/lib/use-colr-support";
 
 /**
  * Hue Type icon font — used for in-app iconography.
@@ -82,49 +82,7 @@ const GLYPH_FALLBACK: Record<HueGlyph, string> = {
   swap:         "⇄",
 };
 
-/**
- * Detect whether this browser actually renders COLR v1 colour fonts.
- *
- * WHY NOT CSS.supports('font-palette','normal'):
- * Safari 15.4+ returns true for that property check but still doesn't
- * render COLR v1 glyphs — they're just invisible. We have to UA-sniff
- * Safari/iOS until WebKit ships full COLRv1 support.
- *
- * Track: https://bugs.webkit.org/show_bug.cgi?id=242154
- * Remove the UA check once that bug is resolved.
- */
-function isColrSupported(): boolean {
-  if (typeof window === "undefined") return true; // SSR — render the real glyph
-
-  const ua = navigator.userAgent;
-
-  // iOS always uses WebKit engine regardless of browser label
-  const isIOS =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-  // Safari on macOS — Chrome/Edge/Firefox all include "Safari" in their UA
-  // so we exclude them explicitly
-  const isSafari =
-    /Safari/.test(ua) &&
-    !/Chrome|Chromium|CriOS|FxiOS|EdgA|OPR/.test(ua);
-
-  if (isIOS || isSafari) return false;
-
-  return typeof CSS !== "undefined" && CSS.supports("font-palette", "normal");
-}
-
-// Module-level cache — computed once per page load, same for every HueIcon
-let _colrSupported: boolean | null = null;
-
-function usePaletteSupport(): boolean {
-  const [supported, setSupported] = useState(true); // SSR default
-  useEffect(() => {
-    if (_colrSupported === null) _colrSupported = isColrSupported();
-    setSupported(_colrSupported);
-  }, []);
-  return supported;
-}
+// Detection shared with Loader — lives in src/lib/use-colr-support.ts
 
 export function HueIcon({
   glyph,
@@ -139,7 +97,7 @@ export function HueIcon({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const paletteSupported = usePaletteSupport();
+  const paletteSupported = useColrSupport();
   const ch = glyph in HUE ? HUE[glyph as HueGlyph] : (glyph as string);
 
   // ── Safari / iOS fallback ─────────────────────────────────────────────

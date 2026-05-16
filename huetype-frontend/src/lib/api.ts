@@ -39,6 +39,7 @@ export type FontJob = {
   error_message: string | null;
   font_storage_path: string | null;
   ttf_storage_path: string | null;
+  sbix_storage_path: string | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -164,7 +165,7 @@ export const api = {
   getJob: (projectId: string, jobId: string) =>
     apiFetch<FontJob>(`/projects/${projectId}/jobs/${jobId}`),
 
-  getDownloadUrl: (projectId: string, jobId: string, fmt: "ttf" | "woff2") =>
+  getDownloadUrl: (projectId: string, jobId: string, fmt: "ttf" | "woff2" | "sbix") =>
     apiFetch<{ url: string; format: string; expires_in: number }>(
       `/projects/${projectId}/jobs/${jobId}/download?fmt=${fmt}`,
     ),

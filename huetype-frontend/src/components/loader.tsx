@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useColrSupport } from "@/lib/use-colr-support";
 
 // Four visually rich glyphs from hue-type.ttf
 // illustration (E001) · triTone (E002) · duoTone (E005) · newType (E00A)
@@ -51,6 +52,7 @@ export default function Loader({
   longWaitMs = 4000,
   longWaitLabel = "Waking up the server… this can take 30–40s on the free plan.",
 }: Props) {
+  const colrSupported = useColrSupport();
   const [paletteIdx, setPaletteIdx] = useState(0);
   const [activeGlyph, setActiveGlyph] = useState(0);
   const [longWait, setLongWait] = useState(false);
@@ -102,6 +104,42 @@ export default function Loader({
 
   const px = SIZE_PX[size];
   const gap = GAP_PX[size];
+
+  // ── Safari / iOS fallback ─────────────────────────────────────────────
+  // COLRv1 glyphs are invisible in Safari/iOS — show CSS animated dots instead.
+  if (!colrSupported) {
+    const dotSize = { sm: 8, md: 12, lg: 16 }[size];
+    const fallbackInner = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex items-center gap-2">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="rounded-full animate-pulse"
+              style={{
+                width: dotSize,
+                height: dotSize,
+                backgroundColor: "rgba(23,24,28,0.3)",
+                animationDelay: `${i * 200}ms`,
+                animationDuration: "900ms",
+              }}
+            />
+          ))}
+        </div>
+        {(label || longWait) && (
+          <p className="text-xs max-w-xs text-center leading-relaxed" style={{ color: "rgba(23,24,28,0.5)" }}>
+            {longWait ? longWaitLabel : label}
+          </p>
+        )}
+      </div>
+    );
+    if (!overlay) return fallbackInner;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ backgroundColor: "rgba(243,243,243,0.8)" }}>
+        {fallbackInner}
+      </div>
+    );
+  }
 
   const inner = (
     <div className="flex flex-col items-center gap-3">

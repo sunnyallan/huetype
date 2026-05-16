@@ -101,11 +101,17 @@ def get_download_url(
     fmt: str = "woff2",
     user_id: str = Depends(verify_token),
 ):
+    """
+    fmt options:
+      woff2  – COLRv1 WOFF2  (Chrome / Firefox / Edge, web use)
+      ttf    – COLRv1 TTF    (design tools, Chrome / Firefox)
+      sbix   – COLR+SBIX TTF (Safari / iOS / macOS Figma)
+    """
     _assert_project_owner(project_id, user_id)
 
     job_res = (
         db.table("font_jobs")
-        .select("status, font_storage_path, ttf_storage_path")
+        .select("status, font_storage_path, ttf_storage_path, sbix_storage_path")
         .eq("id", job_id)
         .eq("project_id", project_id)
         .eq("user_id", user_id)
@@ -119,9 +125,18 @@ def get_download_url(
     if job["status"] != "complete":
         raise HTTPException(status_code=400, detail="Font is not ready yet")
 
-    path = job["font_storage_path"] if fmt == "woff2" else job.get("ttf_storage_path")
+    path_map = {
+        "woff2": job.get("font_storage_path"),
+        "ttf":   job.get("ttf_storage_path"),
+        "sbix":  job.get("sbix_storage_path"),
+    }
+    path = path_map.get(fmt)
     if not path:
-        raise HTTPException(status_code=404, detail=f"No {fmt.upper()} file available for this job")
+        raise HTTPException(
+            status_code=404,
+            detail=f"No {fmt.upper()} file available for this job. "
+                   f"Available: {[k for k, v in path_map.items() if v]}",
+        )
 
     signed_url = storage.get_signed_url(storage.FONT_BUCKET, path, expires_in=3600)
     return {"url": signed_url, "format": fmt, "expires_in": 3600}

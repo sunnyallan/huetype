@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from services.db import db
 from services import storage
 from services.svg_recolor import recolor_svg_smart
+from services.sbix_builder import build_sbix_ttf
 
 
 async def run_font_job(job_id: str, project_id: str, user_id: str, color_format: str) -> None:
@@ -141,12 +142,28 @@ async def run_font_job(job_id: str, project_id: str, user_id: str, color_format:
             ttf_storage_path = f"{user_id}/{project_id}/{job_id}.ttf"
             storage.upload_font(ttf_storage_path, ttf_bytes, "font/ttf")
 
+        # ── Build SBIX (Safari / iOS) — non-blocking, never fails the job ───
+        # Adds bitmap strikes to the COLR TTF so CoreText (Safari, iOS,
+        # macOS Figma) can render the glyphs.  Wrapped in try/except so a
+        # cairosvg or fontTools hiccup never blocks the user getting their
+        # COLR font.
+        sbix_storage_path = None
+        if ttf_files:
+            try:
+                sbix_bytes = build_sbix_ttf(ttf_files[0], glyphs)
+                sbix_storage_path = f"{user_id}/{project_id}/{job_id}_safari.ttf"
+                storage.upload_font(sbix_storage_path, sbix_bytes, "font/ttf")
+            except Exception as sbix_exc:
+                # Log but don't propagate — COLR build already succeeded
+                print(f"[SBIX] non-fatal build error for job {job_id}: {sbix_exc}")
+
         # ── Mark complete ────────────────────────────────────────────────────
         db.table("font_jobs").update(
             {
                 "status": "complete",
                 "font_storage_path": font_storage_path,
                 "ttf_storage_path": ttf_storage_path,
+                "sbix_storage_path": sbix_storage_path,
                 "completed_at": datetime.now(timezone.utc).isoformat(),
             }
         ).eq("id", job_id).execute()

@@ -14,6 +14,8 @@ class JobResponse(BaseModel):
     color_format: str
     error_message: Optional[str]
     font_storage_path: Optional[str]
+    ttf_storage_path: Optional[str]
+    sbix_storage_path: Optional[str]   # COLR+SBIX TTF for Safari / iOS
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
     created_at: datetime
