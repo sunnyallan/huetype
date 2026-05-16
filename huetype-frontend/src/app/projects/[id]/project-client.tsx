@@ -1038,6 +1038,7 @@ function GlyphEditPanel({
   const [error, setError] = useState<string | null>(null);
   const [deleteHovered, setDeleteHovered] = useState(false);
   const [saveCloseHovered, setSaveCloseHovered] = useState(false);
+  const [replaceHovered, setReplaceHovered] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
 
   /** Shared helper: parse and set colour state from raw SVG text. */
@@ -1301,9 +1302,17 @@ function GlyphEditPanel({
         />
         <button
           onClick={() => replaceInputRef.current?.click()}
+          onMouseEnter={() => setReplaceHovered(true)}
+          onMouseLeave={() => setReplaceHovered(false)}
           className="w-full ht-btn bg-ht-white border border-ht-line text-ht-ink py-4 hover:border-ht-ink transition-colors duration-200 ease-in-out"
         >
-          <HueIcon glyph="swap" size={16} palette="ink" />
+          {/* Icon crossfade: ink at rest → brand on hover */}
+          <span className="ht-icon-stack" style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+            <HueIcon glyph="swap" size={16} palette="ink"
+              style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: replaceHovered ? 0 : 1 }} />
+            <HueIcon glyph="swap" size={16} palette="brand"
+              style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: replaceHovered ? 1 : 0 }} />
+          </span>
           {pendingFile ? `Replace: ${pendingFile.name}` : "Replace SVG"}
         </button>
       </div>
