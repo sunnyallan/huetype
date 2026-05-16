@@ -103,6 +103,11 @@
   font-family: HueType;
   override-colors: 0 #ffffff, 1 #c8c8c8, 2 #eefa94;
 }
+/* Profile (account) icon rest state: light grey / black / lighter grey */
+@font-palette-values --ht-profile {
+  font-family: HueType;
+  override-colors: 0 #b7b7b7, 1 #000000, 2 #d9d9d9;
+}
 
 /* ── Size slider ──────────────────────────────────────────────────────────── */
 /*   Tall pill track. Thumb is a hollow ring — transparent centre lets the   */

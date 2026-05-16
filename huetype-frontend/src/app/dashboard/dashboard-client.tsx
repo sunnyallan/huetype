@@ -392,15 +392,51 @@ function ProfileChip({
           </button>
         </div>
       )}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="bg-ht-white rounded-ht-md shadow-ht-soft px-6 py-5 flex items-center justify-center"
-        aria-label="Profile"
-        title={email}
-      >
-        <HueIcon glyph="illustration" size={32} palette="ref" />
-      </button>
+      <ProfileButton open={open} onToggle={() => setOpen((v) => !v)} email={email} />
     </div>
+  );
+}
+
+/* ─── Profile button with palette crossfade (profile → close-hover) ── */
+function ProfileButton({
+  open,
+  onToggle,
+  email,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  email: string;
+}) {
+  const [hovered, setHovered] = useState(false);
+  // Open menu state counts as "active" — keep hover palette pinned when open
+  const active = hovered || open;
+  return (
+    <button
+      onClick={onToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="bg-ht-white rounded-ht-md shadow-ht-soft px-6 py-5 flex items-center justify-center"
+      aria-label="Profile"
+      title={email}
+    >
+      <span
+        className="ht-icon-stack"
+        style={{ position: "relative", display: "inline-flex", width: 32, height: 32, flexShrink: 0 }}
+      >
+        <HueIcon
+          glyph="profile"
+          size={32}
+          palette="profile"
+          style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: active ? 0 : 1 }}
+        />
+        <HueIcon
+          glyph="profile"
+          size={32}
+          palette="close-hover"
+          style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: active ? 1 : 0 }}
+        />
+      </span>
+    </button>
   );
 }
 

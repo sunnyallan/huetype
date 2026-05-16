@@ -21,6 +21,7 @@ import { useColrSupport } from "@/lib/use-colr-support";
  *   E00A  Aa in frame          →  typography / new-type
  *   E00B  X circle             →  error / close
  *   E00C  swap arrows          →  swap / refresh
+ *   E00D  profile silhouette   →  profile / account
  */
 // Codepoints U+E001–U+E00C in document order. We build the strings via
 // String.fromCodePoint to avoid the literal PUA characters being silently
@@ -38,12 +39,13 @@ export const HUE = {
   newType:      String.fromCodePoint(0xe00a),
   close:        String.fromCodePoint(0xe00b),
   swap:         String.fromCodePoint(0xe00c),
+  profile:      String.fromCodePoint(0xe00d),
 } as const;
 
 export type HueGlyph = keyof typeof HUE;
 
-/** All 12 glyph chars in document order — handy for cycling. */
-export const HUE_ALL: string[] = Array.from({ length: 12 }, (_, i) =>
+/** All 13 glyph chars in document order — handy for cycling. */
+export const HUE_ALL: string[] = Array.from({ length: 13 }, (_, i) =>
   String.fromCodePoint(0xe001 + i),
 );
 
@@ -65,7 +67,8 @@ export type HuePalette =
   | "brand"
   | "icon"
   | "close-hover"
-  | "edit-hover";
+  | "edit-hover"
+  | "profile";
 
 export function HueIcon({
   glyph,
