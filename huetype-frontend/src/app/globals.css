@@ -11,6 +11,15 @@
   font-style: normal;
 }
 
+/* Active icon-font family. Defaults to the COLR HueType for Chrome/FF/Edge.
+   On Safari/iOS, JS sets this to "HueTypeSafari" (the SBIX TTF) — see
+   src/lib/use-colr-support.ts. Using a variable means every consumer can
+   keep writing the same value while the underlying font is swapped at
+   runtime with no rendering conflicts. */
+:root {
+  --ht-font: "HueType";
+}
+
 /* Named palette overrides for in-app icon usage.
    The font's CPAL has 3 slots: 0=purple, 1=lime, 2=pink (default).
    Pick the right one per call-site so the icon reads on its background. */

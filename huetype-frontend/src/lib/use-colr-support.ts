@@ -10,17 +10,26 @@
  *
  * Track: https://bugs.webkit.org/show_bug.cgi?id=242154
  *
- * On Safari/iOS we hot-swap the "HueType" font to a SBIX (bitmap colour)
- * version at /hue-type-safari.ttf. SBIX is rendered natively by WebKit,
- * so glyphs render correctly with their baked-in colours. Note: SBIX is
- * a fixed-colour format — font-palette overrides have no visual effect
- * on Safari, but the glyphs themselves remain visible and on-brand.
+ * HOW THE SAFARI SWAP WORKS:
+ * On Safari/iOS we load the SBIX TTF under a SEPARATE font-family name
+ * ("HueTypeSafari") rather than overloading the same "HueType" family.
+ * Then we flip the `--ht-font` CSS variable so every consumer (HueIcon,
+ * Loader, landing-page SVG) starts using "HueTypeSafari" instead.
+ *
+ * Why not reuse the "HueType" family name? Because the CSS-declared
+ * @font-face for /hue-type.ttf (COLR) is still registered. Safari sees
+ * both faces, picks the COLR one (first-declared wins for face-matching),
+ * tries to render PUA glyphs from it, and produces invisible output.
+ * Symptom: icons render briefly while SBIX is the only face, then vanish
+ * once the COLR @font-face finishes loading and takes over.
+ *
+ * Using a separate family name eliminates the conflict entirely.
  */
 
 import { useEffect, useState } from "react";
 
 const SBIX_FONT_URL = "/hue-type-safari.ttf";
-const FONT_FAMILY = "HueType";
+const SBIX_FAMILY = "HueTypeSafari";
 
 // Module-level caches — computed once per page load for the whole app
 let _result: boolean | null = null;
@@ -48,34 +57,29 @@ export function detectColrSupport(): boolean {
 }
 
 /**
- * Load the SBIX-flavoured HueType font and register it under the same
- * "HueType" family name. The browser will prefer this face for PUA
- * glyphs since the COLR face renders nothing on WebKit.
+ * Load the SBIX font under "HueTypeSafari" and flip --ht-font to it.
+ * Idempotent — safe to call from multiple components on first mount.
  */
 export async function ensureSbixFontLoaded(): Promise<void> {
   if (typeof window === "undefined") return;
   if (_sbixLoadStarted) return;
   _sbixLoadStarted = true;
 
-  // Skip if a HueType face has already been registered via FontFace API
-  let alreadyLoaded = false;
-  document.fonts.forEach((f) => {
-    // Detect by checking if any HueType face is sourced from the SBIX URL.
-    // FontFaceSet doesn't expose src, so we tag our face with a non-standard
-    // display value as a marker — simpler: just guard with the module flag.
-    if (f.family === FONT_FAMILY && f.status === "loaded") alreadyLoaded = true;
-  });
-  if (alreadyLoaded) {
-    // Even if a HueType face is loaded, on Safari we still want the SBIX one —
-    // the COLR face is "loaded" but visually empty for PUA glyphs.
-  }
-
   try {
-    const face = new FontFace(FONT_FAMILY, `url(${SBIX_FONT_URL})`, {
+    const face = new FontFace(SBIX_FAMILY, `url(${SBIX_FONT_URL})`, {
       display: "block",
     });
     const loaded = await face.load();
     document.fonts.add(loaded);
+
+    // Flip the CSS variable. Every consumer of var(--ht-font, "HueType")
+    // immediately switches to the SBIX face. The original "HueType" face
+    // remains registered but no element references it anymore, so its
+    // invisible-on-Safari glyphs never render.
+    document.documentElement.style.setProperty(
+      "--ht-font",
+      `"${SBIX_FAMILY}"`,
+    );
   } catch {
     // Safari font swap failed — glyphs will be invisible. UI must still
     // be usable via accompanying text labels (aria-label / sibling spans).

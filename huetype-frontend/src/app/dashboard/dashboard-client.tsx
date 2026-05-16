@@ -311,7 +311,7 @@ function HueTypeFallbackThumb({ hovering }: { hovering: boolean }) {
     <span
       style={
         {
-          fontFamily: "HueType",
+          fontFamily: 'var(--ht-font, "HueType")',
           fontPalette: hovering ? "--ht-brand" : "--ht-ref",
           fontSize: 72,
           lineHeight: 1,

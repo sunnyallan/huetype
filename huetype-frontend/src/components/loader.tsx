@@ -90,13 +90,17 @@ export default function Loader({
     const overrides = PALETTES[paletteIdx]
       .map((c, i) => `${i} rgb(${c[0]},${c[1]},${c[2]})`)
       .join(", ");
+    // Note: @font-palette-values must reference the literal family name
+    // (CSS variables aren't allowed inside the at-rule). On Safari the
+    // active font is "HueTypeSafari" (SBIX, fixed-colour) so palette
+    // overrides have no visual effect — that's expected.
     styleRef.current.textContent = `
       @font-palette-values --ht-loader {
         font-family: "HueType";
         override-colors: ${overrides};
       }
       .ht-loader-glyph {
-        font-family: "HueType";
+        font-family: var(--ht-font, "HueType");
         font-palette: --ht-loader;
       }
     `;

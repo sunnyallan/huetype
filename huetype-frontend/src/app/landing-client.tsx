@@ -117,9 +117,11 @@ export default function LandingClient() {
             </defs>
             {/* Top arc — glyphs in ref (grey) palette */}
             <text
-              fontFamily="HueType"
               fontSize="24"
-              style={{ fontPalette: "--ht-ref" } as React.CSSProperties}
+              style={{
+                fontFamily: 'var(--ht-font, "HueType")',
+                fontPalette: "--ht-ref",
+              } as React.CSSProperties}
             >
               <textPath href="#arc1">
                 <animate
@@ -134,9 +136,11 @@ export default function LandingClient() {
             </text>
             {/* Bottom arc — glyphs in duo (mono grey) palette, offset start */}
             <text
-              fontFamily="HueType"
               fontSize="20"
-              style={{ fontPalette: "--ht-duo" } as React.CSSProperties}
+              style={{
+                fontFamily: 'var(--ht-font, "HueType")',
+                fontPalette: "--ht-duo",
+              } as React.CSSProperties}
             >
               <textPath href="#arc2">
                 <animate

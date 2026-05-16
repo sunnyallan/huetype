@@ -90,7 +90,7 @@ export function HueIcon({
       className={className}
       style={
         {
-          fontFamily: "HueType",
+          fontFamily: 'var(--ht-font, "HueType")',
           fontPalette: `--ht-${palette}`,
           fontSize: size,
           lineHeight: 1,
