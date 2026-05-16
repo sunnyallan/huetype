@@ -25,13 +25,20 @@
    No-op on Chrome/FF/Edge (no .ht-no-colr class) — they keep the
    real COLR palette crossfade unchanged. */
 .ht-no-colr .ht-icon-stack {
-  transition: filter 300ms ease-in-out, transform 300ms ease-in-out;
-  filter: grayscale(1) brightness(0.92) contrast(0.95);
+  transition: filter 300ms ease-in-out, transform 300ms ease-in-out, opacity 300ms ease-in-out;
+  /* Keep some saturation so light slots (lime/pink) don't blend into a
+     light-grey card background — pure grayscale was making icons disappear.
+     Rest state: partially desaturated + dimmed → reads as "inactive". */
+  filter: saturate(0.4) brightness(0.9);
+  opacity: 0.85;
 }
 .ht-no-colr *:hover > .ht-icon-stack,
 .ht-no-colr *:hover .ht-icon-stack,
 .ht-no-colr .ht-icon-stack:hover {
-  filter: none;
+  /* Hover state: full vibrance + slight scale = clear "active" feedback */
+  filter: saturate(1.15) brightness(1.02);
+  opacity: 1;
+  transform: scale(1.06);
 }
 
 /* Icon-font family override for Safari. Every element that renders a
