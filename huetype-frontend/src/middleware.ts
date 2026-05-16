@@ -35,6 +35,7 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute =
     path === "/" ||
     path === "/login" ||
+    path === "/docs.html" ||
     path.startsWith("/auth") ||
     path.startsWith("/opengraph-image") ||
     path === "/sitemap.xml" ||
@@ -55,6 +56,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ttf|otf|woff|woff2|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ttf|otf|woff|woff2|ico|html)$).*)",
   ],
 };

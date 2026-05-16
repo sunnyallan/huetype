@@ -350,17 +350,17 @@
       <text x="100" y="-12" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">Slot 2</text>
       <text x="100" y="-28" text-anchor="middle" font-size="11" fill="#ccc">foreground</text>
     </g>
-    <!-- Z arrow -->
-    <g transform="translate(330,80)">
-      <line x1="0" y1="0" x2="0" y2="140" stroke="#7c6af5" stroke-width="2" marker-end="url(#arr)"/>
-      <text x="14" y="80" font-size="12" fill="#7c6af5" font-weight="600">render order</text>
-      <text x="14" y="98" font-size="11" fill="#666">first → last</text>
-    </g>
     <defs>
       <marker id="arr" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
-        <path d="M0,0 L10,5 L0,10 Z" fill="#7c6af5"/>
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555555"/>
       </marker>
     </defs>
+    <!-- Z arrow -->
+    <g transform="translate(330,80)">
+      <line x1="0" y1="0" x2="0" y2="140" stroke="#555555" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="14" y="80" font-size="12" fill="#333333" font-weight="600">render order</text>
+      <text x="14" y="98" font-size="11" fill="#666">first → last</text>
+    </g>
     <!-- Composite result -->
     <g transform="translate(400,90)">
       <text x="60" y="-10" text-anchor="middle" font-size="11" fill="#666">composite</text>
@@ -394,47 +394,31 @@
   &lt;path d="M8,8 L16,16 M16,8 L8,16"
         stroke="#000000" stroke-width="2.5" fill="none"/&gt;
 &lt;/svg&gt;</code></pre>
-<p>Three shapes, three fills, three slots. The font built from this SVG can later be recoloured with any palette — for example brand vivid:</p>
-<pre><code>@font-palette-values --brand {
+<p>Three shapes, three fills, three slots. The font built from this SVG can later be recoloured with any palette — for example a dark/inverted scheme:</p>
+<pre><code>@font-palette-values --inverted {
   font-family: "MyIcons";
   override-colors:
-    0 #7c6af5,   /* slot 0: was #b7b7b7 → now purple */
-    1 #e2ec5b,   /* slot 1: was #d9d9d9 → now lime   */
-    2 #ff6b9d;   /* slot 2: was #000000 → now pink   */
+    0 #2a2a2a,   /* slot 0: was #b7b7b7 → now near-black */
+    1 #888888,   /* slot 1: was #d9d9d9 → now mid grey   */
+    2 #ffffff;   /* slot 2: was #000000 → now white      */
 }</code></pre>
 <p>The icon's <strong>structure</strong> stays the same — only the colours change. Ship one SVG, recolour it for dark mode, hover states, brand swaps, etc., without rebuilding the font.</p>
 
-<h3>Three flavours: illustration, duo-tone, tri-tone</h3>
+<h3>Three flavours: duo-tone, tri-tone, illustration</h3>
 <p>Hue Type lets you build fonts at three complexity levels depending on how many slots each glyph uses. Pick one consistently per project — mixing flavours in the same font is supported but harder to recolour predictably.</p>
 
 <div class="grid-3">
   <figure>
     <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
       <rect width="140" height="140" fill="#f3f3f3"/>
-      <!-- Single filled shape (1 slot) -->
-      <path d="M70,30 L100,90 L40,90 Z" fill="#17181c"/>
-      <path d="M70,30 L100,90 L40,90 Z" fill="#17181c"/>
-      <circle cx="70" cy="105" r="6" fill="#17181c"/>
-    </svg>
-    <figcaption>
-      <strong>Illustration</strong> · 1 slot<br>
-      Monotone silhouette. Best for icons that don't need internal depth — arrows, dots, marks.
-      <br>
-      <a href="/examples/illustration-sample.svg" class="sample-link" download>↓ illustration-sample.svg</a>
-    </figcaption>
-  </figure>
-
-  <figure>
-    <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
-      <rect width="140" height="140" fill="#f3f3f3"/>
       <!-- Slot 0 background -->
       <circle cx="70" cy="70" r="44" fill="#b7b7b7"/>
       <!-- Slot 1 inner detail -->
-      <path d="M50,68 L66,84 L92,56" stroke="#17181c" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M50,72 L64,86 L92,56 L96,60 L64,94 L46,76 Z" fill="#17181c"/>
     </svg>
     <figcaption>
       <strong>Duo-tone</strong> · 2 slots<br>
-      Background plate + foreground accent. Great for filled icons with a clear inner mark — checks, plus, close, edit.
+      Background plate + foreground accent. Best for filled icons with a clear inner mark — check, plus, close, edit.
       <br>
       <a href="/examples/duo-sample.svg" class="sample-link" download>↓ duo-sample.svg</a>
     </figcaption>
@@ -443,22 +427,49 @@
   <figure>
     <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
       <rect width="140" height="140" fill="#f3f3f3"/>
-      <!-- Slot 0 background plate -->
+      <!-- Slot 0 outer -->
       <rect x="32" y="34" width="76" height="72" rx="6" fill="#d9d9d9"/>
-      <!-- Slot 1 mid layer -->
-      <rect x="40" y="44" width="60" height="44" rx="3" fill="#7c6af5"/>
+      <!-- Slot 1 mid -->
+      <rect x="40" y="44" width="60" height="44" rx="3" fill="#888888"/>
       <!-- Slot 2 top detail -->
-      <circle cx="70" cy="66" r="10" fill="#eefa94"/>
+      <circle cx="70" cy="66" r="10" fill="#17181c"/>
     </svg>
     <figcaption>
       <strong>Tri-tone</strong> · 3 slots<br>
-      Full 3-layer stack — background + mid + foreground. The richest variant; ideal for illustrative icons with depth.
+      Background + mid layer + foreground. A three-layer stack — ideal for icons with structural depth like cards, stacks, badges.
       <br>
       <a href="/examples/tri-sample.svg" class="sample-link" download>↓ tri-sample.svg</a>
     </figcaption>
   </figure>
+
+  <figure>
+    <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="140" height="140" fill="#f3f3f3"/>
+      <!-- A small illustrated house — 6 distinct fills/slots -->
+      <!-- Slot 0 (darkest) · roof body -->
+      <path d="M30,72 L70,30 L110,72 L110,78 L30,78 Z" fill="#17181c"/>
+      <!-- Slot 1 · door -->
+      <rect x="84" y="92" width="14" height="24" fill="#3a3a3a"/>
+      <!-- Slot 2 · house body -->
+      <rect x="42" y="78" width="64" height="38" fill="#5a5a5a"/>
+      <!-- Slot 3 · window frames -->
+      <rect x="50" y="84" width="14" height="14" fill="#888888"/>
+      <rect x="68" y="84" width="14" height="14" fill="#888888"/>
+      <!-- Slot 4 · chimney -->
+      <rect x="92" y="42" width="8" height="22" fill="#c0c0c0"/>
+      <!-- Slot 5 (lightest) · window panes -->
+      <rect x="52" y="86" width="10" height="10" fill="#e8e8e8"/>
+      <rect x="70" y="86" width="10" height="10" fill="#e8e8e8"/>
+    </svg>
+    <figcaption>
+      <strong>Illustration</strong> · 4+ slots<br>
+      Many-layered, multi-tone icons. Every unique fill in the source becomes a new CPAL slot — use this for richer, illustrative glyphs.
+      <br>
+      <a href="/examples/illustration-sample.svg" class="sample-link" download>↓ illustration-sample.svg</a>
+    </figcaption>
+  </figure>
 </div>
-<p style="font-size: 14px; color: var(--mute);"><em>Tip:</em> open each sample SVG in a text editor (or Figma) to see exactly how the layers are structured. The fill colours are placeholders — they map to slot 0 / 1 / 2 based on source order.</p>
+<p style="font-size: 14px; color: var(--mute);"><em>Tip:</em> open each sample SVG in a text editor (or Figma) to see exactly how the layers are structured. The fill values are placeholders — they map to slot indices based on source order, and CSS can remap them at runtime.</p>
 
 <h3>Strokes vs filled paths</h3>
 <p>nanoemoji rasterises every shape as a filled path. Strokes (<code>stroke-width</code>, <code>stroke</code>) are technically supported but mapping them to slots is unpredictable — convert all strokes to outlined paths before exporting.</p>
@@ -494,8 +505,8 @@
     <svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="grad-bad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#7c6af5"/>
-          <stop offset="100%" stop-color="#ff6b9d"/>
+          <stop offset="0%" stop-color="#17181c"/>
+          <stop offset="100%" stop-color="#d9d9d9"/>
         </linearGradient>
       </defs>
       <rect width="200" height="140" fill="#f3f3f3"/>
@@ -508,10 +519,10 @@
     <svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
       <rect width="200" height="140" fill="#f3f3f3"/>
       <!-- Two solid concentric circles -->
-      <circle cx="100" cy="70" r="40" fill="#7c6af5"/>
-      <circle cx="100" cy="70" r="24" fill="#ff6b9d"/>
+      <circle cx="100" cy="70" r="40" fill="#5a5a5a"/>
+      <circle cx="100" cy="70" r="24" fill="#b7b7b7"/>
     </svg>
-    <figcaption>Replace gradients with stacked solid fills — each becomes its own slot. To simulate a gradient feel, use 2 or 3 concentric/overlapping shapes with related colours.</figcaption>
+    <figcaption>Replace gradients with stacked solid fills — each becomes its own slot. To simulate a gradient feel, use 2 or 3 concentric/overlapping shapes with related shades.</figcaption>
   </figure>
 </div>
 

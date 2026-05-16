@@ -1,17 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Hue Type · Illustration sample (1 slot / monotone)
+  Hue Type · Illustration sample (many layers, multi-tone)
   ------------------------------------------------------------------
-  ONE unique fill colour → nanoemoji assigns it to slot 0.
-  All shapes use the same colour. Strokes are converted to filled
-  paths (see the arrow head — drawn as a filled polygon, NOT a
-  stroked line).
+  Illustration is the richest variant — it can use MORE THAN 3 unique
+  fill colours per glyph. nanoemoji assigns each unique fill to its
+  own CPAL slot in source order.
+
+  This sample uses 6 distinct grey shades, assigned as:
+    slot 0  →  #17181c  (darkest · roof body)
+    slot 1  →  #3a3a3a  (door)
+    slot 2  →  #5a5a5a  (house body)
+    slot 3  →  #888888  (window frames)
+    slot 4  →  #c0c0c0  (chimney highlight)
+    slot 5  →  #e8e8e8  (window panes / lightest)
+
+  Notes:
+   - Every shape uses a flat fill — no strokes, no gradients,
+     no opacity.
+   - Source order = z-order. The first <path> renders behind
+     everything; the last renders on top.
+   - The hex values are placeholders — CSS @font-palette-values
+     can remap any/all slots at runtime.
   ------------------------------------------------------------------
 -->
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <!-- Slot 0 · #17181c (arrow body + head) -->
-  <!-- Arrow shaft as filled rectangle, not a stroke -->
-  <rect x="14" y="29" width="28" height="6" rx="2" fill="#17181c"/>
-  <!-- Arrow head as filled triangle, not a stroke -->
-  <path d="M40,22 L52,32 L40,42 Z" fill="#17181c"/>
+
+  <!-- Slot 0 · #17181c · roof body (back-most layer) -->
+  <path d="M6,30 L32,8 L58,30 L58,34 L6,34 Z" fill="#17181c"/>
+
+  <!-- Slot 1 · #3a3a3a · door -->
+  <rect x="40" y="42" width="8" height="16" fill="#3a3a3a"/>
+
+  <!-- Slot 2 · #5a5a5a · house body -->
+  <rect x="12" y="34" width="40" height="24" fill="#5a5a5a"/>
+
+  <!-- Slot 3 · #888888 · window frames -->
+  <rect x="16" y="38" width="10" height="10" fill="#888888"/>
+  <rect x="28" y="38" width="10" height="10" fill="#888888"/>
+
+  <!-- Slot 4 · #c0c0c0 · chimney highlight -->
+  <rect x="44" y="14" width="6" height="14" fill="#c0c0c0"/>
+
+  <!-- Slot 5 · #e8e8e8 · window panes (front-most) -->
+  <rect x="18" y="40" width="6" height="6" fill="#e8e8e8"/>
+  <rect x="30" y="40" width="6" height="6" fill="#e8e8e8"/>
+
 </svg>

@@ -4,20 +4,22 @@
   ------------------------------------------------------------------
   TWO unique fill colours, assigned to slots in source order:
     slot 0  →  #b7b7b7  (first <circle> · background plate)
-    slot 1  →  #17181c  (second path   · foreground check mark)
+    slot 1  →  #17181c  (second path    · foreground check mark)
 
   Notes:
-   - No strokes anywhere. The check mark uses fill="none" on a path
-     whose 'd' attribute traces the outline of a thick checkmark.
+   - No strokes anywhere. The check mark is a filled path whose 'd'
+     attribute traces the outline of a thick checkmark.
    - Every shape has fill="..." set explicitly.
    - The order of elements in this file IS the z-order — slot 0
      renders first (back), slot 1 renders on top.
   ------------------------------------------------------------------
 -->
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+
   <!-- Slot 0 · #b7b7b7 — background circle -->
   <circle cx="32" cy="32" r="26" fill="#b7b7b7"/>
 
   <!-- Slot 1 · #17181c — check mark, drawn as a filled outline path -->
   <path d="M22,32 L28,38 L42,24 L45,27 L28,44 L19,35 Z" fill="#17181c"/>
+
 </svg>
