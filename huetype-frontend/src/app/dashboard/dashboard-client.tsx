@@ -173,7 +173,7 @@ function NewTypeButton({ onClick }: { onClick: () => void }) {
       ].join(" ")}
     >
       {/* Two icons stacked — opacity crossfade gives smooth ease */}
-      <span className="relative inline-block" style={{ width: 24, height: 24 }}>
+      <span className="relative inline-block ht-icon-stack" style={{ width: 24, height: 24 }}>
         <HueIcon
           glyph="newType"
           size={24}
@@ -420,7 +420,7 @@ function TypeCard({
       className="flex items-center gap-4 text-left p-4 rounded-ht-xl bg-ht-surface border border-transparent hover:border-ht-line transition-colors duration-200 ease-in-out"
     >
       {/* Icon thumbnail — crossfade between rest and hover palette */}
-      <div className="shrink-0 size-[88px] rounded-ht-lg bg-ht-white flex items-center justify-center relative">
+      <div className="shrink-0 size-[88px] rounded-ht-lg bg-ht-white flex items-center justify-center relative ht-icon-stack">
         <HueIcon
           glyph={option.glyph}
           size={56}

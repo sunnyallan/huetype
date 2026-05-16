@@ -80,6 +80,13 @@ export async function ensureSbixFontLoaded(): Promise<void> {
       "--ht-font",
       `"${SBIX_FAMILY}"`,
     );
+
+    // Tag <html> so global CSS can substitute hover crossfades. SBIX is a
+    // fixed-colour format, so opacity-based palette crossfades produce no
+    // visible change on Safari — the same baked-in colour fades in and
+    // out. The `.ht-no-colr` class lets us swap to a brightness/saturate
+    // filter instead, which DOES produce visible feedback on hover.
+    document.documentElement.classList.add("ht-no-colr");
   } catch {
     // Safari font swap failed — glyphs will be invisible. UI must still
     // be usable via accompanying text labels (aria-label / sibling spans).

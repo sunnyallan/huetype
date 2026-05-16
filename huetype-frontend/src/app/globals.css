@@ -11,6 +11,28 @@
   font-style: normal;
 }
 
+/* ── Safari hover crossfade substitute ──────────────────────────────────
+   On Safari/iOS the active icon font is SBIX (fixed-colour bitmaps), so
+   the opacity-crossfade between two @font-palette-values produces no
+   visible change. The `.ht-no-colr` class is added to <html> on Safari
+   by src/lib/use-colr-support.ts. Any element marked .ht-icon-stack
+   gets a brightness/saturate filter at rest, which lifts on hover of
+   the nearest interactive ancestor — giving users a visible "pop"
+   even though the underlying glyph colour can't change.
+
+   This rule is a no-op on Chrome/FF/Edge (no .ht-no-colr class). */
+.ht-no-colr .ht-icon-stack {
+  transition: filter 300ms ease-in-out;
+  filter: saturate(0.45) brightness(0.95);
+}
+/* Lift the filter whenever ANY ancestor (or the stack itself) is hovered —
+   covers buttons, anchors, divs with onMouseEnter, role=button, etc. */
+.ht-no-colr *:hover > .ht-icon-stack,
+.ht-no-colr *:hover .ht-icon-stack,
+.ht-no-colr .ht-icon-stack:hover {
+  filter: none;
+}
+
 /* Active icon-font family. Defaults to the COLR HueType for Chrome/FF/Edge.
    On Safari/iOS, JS sets this to "HueTypeSafari" (the SBIX TTF) — see
    src/lib/use-colr-support.ts. Using a variable means every consumer can

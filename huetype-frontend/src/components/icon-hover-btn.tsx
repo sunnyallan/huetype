@@ -45,6 +45,7 @@ export default function IconHoverBtn({
       className={className}
     >
       <span
+        className="ht-icon-stack"
         style={{
           position: "relative",
           display: "inline-flex",

@@ -607,6 +607,7 @@ function HoverShowcaseCard({
       onMouseLeave={() => setHovered(false)}
     >
       <span
+        className="ht-icon-stack"
         style={{
           position: "relative",
           display: "inline-flex",

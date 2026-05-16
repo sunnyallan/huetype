@@ -101,7 +101,7 @@ function IconHoverBtn({
       className={className}
     >
       {/* Wrapper sized to icon — both icons absolute inside it */}
-      <span style={{ position: "relative", display: "inline-flex", width: size, height: size, flexShrink: 0 }}>
+      <span className="ht-icon-stack" style={{ position: "relative", display: "inline-flex", width: size, height: size, flexShrink: 0 }}>
         <HueIcon glyph={glyph} size={size} palette={restPalette}
           style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: hovered ? 0 : 1 }} />
         <HueIcon glyph={glyph} size={size} palette={hoverPalette}
@@ -932,7 +932,7 @@ function ProjectEditPanel({
           ) : (
             <>
               {/* Icon crossfade: ref at rest → close-hover on hover */}
-              <span style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+              <span className="ht-icon-stack" style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
                 <HueIcon glyph="add" size={16} palette="ref"
                   style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: saveHovered ? 0 : 1 }} />
                 <HueIcon glyph="add" size={16} palette="close-hover"
@@ -958,7 +958,7 @@ function ProjectEditPanel({
             ].join(" ")}
           >
             {/* Icon crossfade: light-lime at rest → brand on hover */}
-            <span style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+            <span className="ht-icon-stack" style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
               <HueIcon glyph="download" size={16} palette="light-lime"
                 style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: dlHovered ? 0 : 1 }} />
               <HueIcon glyph="download" size={16} palette="brand"
@@ -1325,7 +1325,7 @@ function GlyphEditPanel({
           ].join(" ")}
         >
           {/* Icon crossfade: ink at rest → ref-inv (white) on dark red hover */}
-          <span style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+          <span className="ht-icon-stack" style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
             <HueIcon glyph="close" size={16} palette="ink"
               style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: deleteHovered ? 0 : 1 }} />
             <HueIcon glyph="close" size={16} palette="ref-inv"
@@ -1353,7 +1353,7 @@ function GlyphEditPanel({
           ) : (
             <>
               {/* Icon crossfade: light-lime at rest → ref on light hover bg */}
-              <span style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+              <span className="ht-icon-stack" style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
                 <HueIcon glyph="add" size={16} palette="light-lime"
                   style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: saveCloseHovered ? 0 : 1 }} />
                 <HueIcon glyph="add" size={16} palette="ref"
