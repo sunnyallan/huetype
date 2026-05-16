@@ -26,17 +26,19 @@
    real COLR palette crossfade unchanged. */
 .ht-no-colr .ht-icon-stack {
   transition: filter 300ms ease-in-out, transform 300ms ease-in-out, opacity 300ms ease-in-out;
-  /* Keep some saturation so light slots (lime/pink) don't blend into a
-     light-grey card background — pure grayscale was making icons disappear.
-     Rest state: partially desaturated + dimmed → reads as "inactive". */
-  filter: saturate(0.4) brightness(0.9);
-  opacity: 0.85;
+  /* Rest state: heavily desaturated but still visible against light-grey
+     card backgrounds. Just enough chroma left for the icon silhouette to
+     read — the lime/pink slots don't disappear into ht-surface. */
+  filter: saturate(0.2) brightness(0.92);
+  opacity: 0.9;
 }
 .ht-no-colr *:hover > .ht-icon-stack,
 .ht-no-colr *:hover .ht-icon-stack,
 .ht-no-colr .ht-icon-stack:hover {
-  /* Hover state: full vibrance + slight scale = clear "active" feedback */
-  filter: saturate(1.15) brightness(1.02);
+  /* Hover state: SBIX renders in its original baked-in colours — full
+     vibrant purple/lime/pink with no filter manipulation. Subtle scale
+     adds a satisfying "pop" cue. */
+  filter: none;
   opacity: 1;
   transform: scale(1.06);
 }
