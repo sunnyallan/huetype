@@ -320,6 +320,13 @@ button:hover .icon-hover { opacity: 1; }`}</pre>
               hoverPalette="brand"
               note="--ht-arrow → --ht-brand"
             />
+            <HoverShowcaseCard
+              glyph="profile"
+              label="Profile"
+              restPalette="profile"
+              hoverPalette="close-hover"
+              note="--ht-profile → --ht-close-hover"
+            />
           </div>
         </div>
       </section>
