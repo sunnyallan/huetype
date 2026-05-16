@@ -22,19 +22,22 @@ import { useColrSupport } from "@/lib/use-colr-support";
  *   E00B  X circle             →  error / close
  *   E00C  swap arrows          →  swap / refresh
  */
+// Codepoints U+E001–U+E00C in document order. We build the strings via
+// String.fromCodePoint to avoid the literal PUA characters being silently
+// stripped by tools/editors that don't render them.
 export const HUE = {
-  illustration: "",
-  triTone:      "",
-  goArrow:      "",
-  upload:       "",
-  duoTone:      "",
-  edit:         "",
-  download:     "",
-  add:          "",
-  remove:       "",
-  newType:      "",
-  close:        "",
-  swap:         "",
+  illustration: String.fromCodePoint(0xe001),
+  triTone:      String.fromCodePoint(0xe002),
+  goArrow:      String.fromCodePoint(0xe003),
+  upload:       String.fromCodePoint(0xe004),
+  duoTone:      String.fromCodePoint(0xe005),
+  edit:         String.fromCodePoint(0xe006),
+  download:     String.fromCodePoint(0xe007),
+  add:          String.fromCodePoint(0xe008),
+  remove:       String.fromCodePoint(0xe009),
+  newType:      String.fromCodePoint(0xe00a),
+  close:        String.fromCodePoint(0xe00b),
+  swap:         String.fromCodePoint(0xe00c),
 } as const;
 
 export type HueGlyph = keyof typeof HUE;
