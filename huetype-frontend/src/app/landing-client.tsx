@@ -78,6 +78,12 @@ export default function LandingClient() {
         <div className="max-w-[1440px] mx-auto px-6 py-3 flex items-center justify-between">
           <Logo size={36} />
           <div className="flex items-center gap-4">
+            <a
+              href="/docs.html"
+              className="text-sm text-ht-ink/60 hover:text-ht-ink transition-colors duration-200 ease-in-out"
+            >
+              Docs
+            </a>
             <Link
               href="/login"
               className="text-sm text-ht-ink/60 hover:text-ht-ink transition-colors duration-200 ease-in-out"
@@ -554,12 +560,20 @@ button:hover .icon-hover { opacity: 1; }`}</pre>
             <Logo size={24} />
             <span>© 2026 Hue Type</span>
           </div>
-          <Link
-            href="/login"
-            className="hover:text-ht-ink transition-colors duration-200 ease-in-out"
-          >
-            Sign in
-          </Link>
+          <div className="flex items-center gap-6">
+            <a
+              href="/docs.html"
+              className="hover:text-ht-ink transition-colors duration-200 ease-in-out"
+            >
+              Docs
+            </a>
+            <Link
+              href="/login"
+              className="hover:text-ht-ink transition-colors duration-200 ease-in-out"
+            >
+              Sign in
+            </Link>
+          </div>
         </div>
       </footer>
     </main>

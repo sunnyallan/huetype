@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   ArrowRight,
   X,
+  BookOpen,
 } from "lucide-react";
 import { api, type Project, type FontType } from "@/lib/api";
 import { createClient } from "@/lib/supabase-browser";
@@ -374,6 +375,14 @@ function ProfileChip({
       {open && (
         <div className="mb-2 bg-ht-white rounded-ht-md shadow-ht-card p-3 min-w-[220px]">
           <p className="text-xs text-ht-ink/60 px-2 py-1 truncate">{email}</p>
+          <a
+            href="/docs.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-2 text-left px-2 py-2 rounded-lg text-sm text-ht-ink hover:bg-ht-bg"
+          >
+            <BookOpen size={14} /> Documentation
+          </a>
           <button
             onClick={onSignOut}
             className="w-full flex items-center gap-2 text-left px-2 py-2 rounded-lg text-sm text-ht-ink hover:bg-ht-bg"

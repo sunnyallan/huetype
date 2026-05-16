@@ -105,41 +105,10 @@ export default function Loader({
   const px = SIZE_PX[size];
   const gap = GAP_PX[size];
 
-  // ── Safari / iOS fallback ─────────────────────────────────────────────
-  // COLRv1 glyphs are invisible in Safari/iOS — show CSS animated dots instead.
-  if (!colrSupported) {
-    const dotSize = { sm: 8, md: 12, lg: 16 }[size];
-    const fallbackInner = (
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex items-center gap-2">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="rounded-full animate-pulse"
-              style={{
-                width: dotSize,
-                height: dotSize,
-                backgroundColor: "rgba(23,24,28,0.3)",
-                animationDelay: `${i * 200}ms`,
-                animationDuration: "900ms",
-              }}
-            />
-          ))}
-        </div>
-        {(label || longWait) && (
-          <p className="text-xs max-w-xs text-center leading-relaxed" style={{ color: "rgba(23,24,28,0.5)" }}>
-            {longWait ? longWaitLabel : label}
-          </p>
-        )}
-      </div>
-    );
-    if (!overlay) return fallbackInner;
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ backgroundColor: "rgba(243,243,243,0.8)" }}>
-        {fallbackInner}
-      </div>
-    );
-  }
+  // Note: colrSupported is read so the hook triggers the Safari SBIX font load,
+  // but we render the same glyph markup regardless — the SBIX font carries the
+  // same 12 glyphs at the same codepoints, just as bitmaps instead of vectors.
+  void colrSupported;
 
   const inner = (
     <div className="flex flex-col items-center gap-3">

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colour Font Guide · Hue Type</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root {
+    --ink: #17181c;
+    --bg: #f3f3f3;
+    --white: #ffffff;
+    --line: #e6e6e6;
+    --surface: #ececec;
+    --lime: #eefa94;
+    --mute: rgba(23,24,28,0.6);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Albert Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+  }
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--white);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar a { color: var(--ink); text-decoration: none; font-weight: 600; }
+  .topbar nav a { font-weight: 400; color: var(--mute); margin-left: 20px; }
+  .topbar nav a:hover { color: var(--ink); }
+  main {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 56px 24px 120px;
+  }
+  h1 {
+    font-size: 44px;
+    line-height: 1.1;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: 28px;
+    margin: 56px 0 16px;
+    letter-spacing: -0.01em;
+    border-top: 1px solid var(--line);
+    padding-top: 40px;
+  }
+  h2:first-of-type { border-top: 0; padding-top: 0; }
+  h3 {
+    font-size: 20px;
+    margin: 32px 0 8px;
+    font-weight: 600;
+  }
+  h4 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
+  p { margin: 12px 0; }
+  .lead {
+    font-size: 18px;
+    color: var(--mute);
+    margin-bottom: 32px;
+  }
+  a { color: #7c6af5; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13.5px;
+  }
+  code {
+    background: var(--surface);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--ink);
+    color: #e6e6e6;
+    padding: 18px 20px;
+    border-radius: 10px;
+    overflow-x: auto;
+    line-height: 1.55;
+    margin: 18px 0;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+  }
+  ul, ol { padding-left: 22px; }
+  li { margin: 6px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 14.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  th { font-weight: 600; background: var(--white); }
+  tr:hover td { background: var(--surface); }
+  blockquote {
+    border-left: 3px solid var(--lime);
+    background: var(--white);
+    padding: 12px 18px;
+    margin: 16px 0;
+    border-radius: 0 8px 8px 0;
+    color: var(--mute);
+  }
+  blockquote p { margin: 6px 0; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
+  .toc {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 28px;
+    margin: 28px 0 48px;
+  }
+  .toc ol { margin: 0; padding-left: 22px; }
+  .toc a { color: var(--ink); }
+  .footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--mute);
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/">Hue Type</a>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/login">Sign in</a>
+  </nav>
+</div>
+
+<main>
+
+<h1>Colour Font Implementation Guide</h1>
+<p class="lead">A thorough reference for designers and developers using Hue Type's colour fonts — installation, CSS <code>font-palette</code>, SBIX vs COLRv1, browser support, and code examples.</p>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#produces">What Hue Type produces</a></li>
+    <li><a href="#designers">For Designers</a></li>
+    <li><a href="#developers">For Developers</a></li>
+    <li><a href="#support">Browser &amp; Platform Support</a></li>
+    <li><a href="#sbix-vs-colr">SBIX vs COLRv1</a></li>
+    <li><a href="#safari">Safari &amp; iOS — the full picture</a></li>
+    <li><a href="#react">React / Next.js integration</a></li>
+    <li><a href="#size">File size &amp; performance</a></li>
+    <li><a href="#compare">Format comparison table</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ol>
+</div>
+
+<h2 id="produces">1. What Hue Type produces</h2>
+<p>Every build job outputs <strong>three files</strong>:</p>
+<table>
+  <thead><tr><th>File</th><th>Format</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><code>yourfont.woff2</code></td><td>COLRv1 WOFF2</td><td>Websites (Chrome, Firefox, Edge)</td></tr>
+    <tr><td><code>yourfont.ttf</code></td><td>COLRv1 TTF</td><td>Design tools that need TTF; Chromium apps</td></tr>
+    <tr><td><code>yourfont-safari.ttf</code></td><td>COLRv1 + SBIX TTF</td><td>Safari, iOS, macOS Figma, native apps</td></tr>
+  </tbody>
+</table>
+<p><strong>WOFF2</strong> is the right choice for almost all web use — compressed (~40% smaller than TTF) and supported in all modern Chromium/Gecko browsers.</p>
+<p>The <strong>Safari TTF</strong> contains both COLRv1 colour tables and an <strong>SBIX table</strong> with PNG bitmaps at 20 px, 40 px, 80 px, and 160 px so icons render correctly on every Apple device.</p>
+
+<h2 id="designers">2. For Designers</h2>
+
+<h3>Installing on macOS</h3>
+<ol>
+  <li>Download <code>yourfont-safari.ttf</code> from Hue Type.</li>
+  <li>Double-click → <strong>Install Font</strong> in Font Book.</li>
+  <li>The font is now available system-wide — Figma, Sketch, Illustrator, Pages, etc.</li>
+</ol>
+<blockquote><p><strong>Why the Safari TTF, not WOFF2?</strong> WOFF2 is a web-only container. macOS apps use TTF/OTF. The Safari TTF includes SBIX bitmaps, which makes glyphs visible in every macOS app regardless of COLRv1 support.</p></blockquote>
+
+<h3>Using in Figma</h3>
+<p><strong>Desktop (macOS):</strong> install the Safari TTF via Font Book, then pick your font from Figma's font picker. Glyphs render from the SBIX bitmaps.</p>
+<p><strong>Web:</strong> Figma Web runs in Chrome, which supports COLRv1. Use the <em>Local fonts</em> helper in Figma Desktop preferences to make installed fonts available to the web app.</p>
+<p><strong>Typing glyphs:</strong> the easiest way is to copy the character from Hue Type's preview panel and paste into Figma. Each icon is a Private Use Area Unicode character (U+E001 → U+E00C).</p>
+
+<h3>Using in Illustrator &amp; other apps</h3>
+<p>Illustrator 2024+, InDesign 2024+, Sketch, and Affinity Designer 2 all support SBIX colour fonts on macOS. After installation: create a text layer → set font → paste the glyph character.</p>
+
+<h2 id="developers">3. For Developers</h2>
+
+<h3>@font-face setup</h3>
+<pre><code>@font-face {
+  font-family: "MyIcons";
+  src: url("/fonts/yourfont.woff2") format("woff2");
+  font-display: block;
+}</code></pre>
+
+<h3>Using glyphs in HTML</h3>
+<pre><code>&lt;span style="font-family: MyIcons; font-size: 24px;" aria-hidden="true"&gt;&amp;#xE001;&lt;/span&gt;</code></pre>
+<p>Always add <code>aria-hidden="true"</code> — PUA characters have no semantic meaning to screen readers. Pair every icon with an <code>aria-label</code> on the parent button.</p>
+
+<h3>CSS font-palette — the basics</h3>
+<pre><code>.icon {
+  font-family: MyIcons;
+  font-palette: normal;     /* default — uses CPAL palette index 0 */
+}
+.icon-brand {
+  font-palette: --brand-colors;
+}</code></pre>
+
+<h3>Defining custom palettes</h3>
+<pre><code>@font-palette-values --brand-colors {
+  font-family: "MyIcons";
+  base-palette: 0;
+  override-colors:
+    0 rgb(124, 106, 245),   /* slot 0 → purple */
+    1 rgb(226, 236, 91),    /* slot 1 → lime   */
+    2 rgb(255, 107, 157);   /* slot 2 → pink   */
+}
+
+.icon { font-palette: --brand-colors; }</code></pre>
+<p>The <code>font-family</code> inside <code>@font-palette-values</code> must match your <code>@font-face</code> declaration exactly. Hue Type fonts use 3 colour slots.</p>
+
+<h3>Hover crossfade pattern</h3>
+<p>CSS cannot animate directly between <code>font-palette</code> values. Stack two copies of the icon and crossfade opacity:</p>
+<pre><code>.icon-wrap { position: relative; display: inline-flex; width: 24px; height: 24px; }
+.icon-rest, .icon-hover {
+  position: absolute; inset: 0;
+  transition: opacity 300ms ease-in-out;
+}
+.icon-rest  { opacity: 1; font-palette: --icon-grey; }
+.icon-hover { opacity: 0; font-palette: --brand-colors; }
+.icon-wrap:hover .icon-rest  { opacity: 0; }
+.icon-wrap:hover .icon-hover { opacity: 1; }</code></pre>
+
+<h3>Inline glyphs in body text</h3>
+<pre><code>&lt;p&gt;Design &lt;span class="icon" aria-hidden="true"&gt;&amp;#xE001;&lt;/span&gt;
+   systems that scale &lt;span class="icon" aria-hidden="true"&gt;&amp;#xE003;&lt;/span&gt;.&lt;/p&gt;</code></pre>
+<p>Icons resize automatically with surrounding text — perfect for headings, callouts, and marketing copy.</p>
+
+<h3>Animations</h3>
+<p>Cycle palettes with <code>setInterval</code> + direct <code>fontPalette</code> updates. For the "active glyph spotlight" effect (one icon lit, others dimmed) toggle opacity + transform on a 350 ms interval. See the Hue Type Loader component for the canonical pattern.</p>
+
+<h2 id="support">4. Browser &amp; Platform Support</h2>
+<h3>COLRv1 (font-palette CSS)</h3>
+<table>
+  <thead><tr><th>Browser</th><th>Version</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Chrome / Edge</td><td>98+</td><td>Full support</td></tr>
+    <tr><td>Firefox</td><td>107+</td><td>Full support</td></tr>
+    <tr><td>Opera / Samsung Internet</td><td>recent</td><td>Chromium-based</td></tr>
+    <tr><td>Safari (macOS &amp; iOS)</td><td>All versions</td><td><strong>Not supported</strong> as of May 2026</td></tr>
+  </tbody>
+</table>
+<p>Global coverage: ~72% of browser sessions (StatCounter, 2026).</p>
+
+<h3>SBIX (bitmap colour font)</h3>
+<table>
+  <thead><tr><th>Platform</th><th>Support</th></tr></thead>
+  <tbody>
+    <tr><td>macOS / iOS / iPadOS</td><td>Full — CoreText renders SBIX natively</td></tr>
+    <tr><td>Safari (macOS)</td><td>Yes — both installed and via @font-face</td></tr>
+    <tr><td>Figma / Sketch / Illustrator on macOS</td><td>Yes</td></tr>
+    <tr><td>Chrome / Firefox</td><td>Partial — may render but prefers COLRv1 if available</td></tr>
+  </tbody>
+</table>
+
+<h2 id="sbix-vs-colr">5. SBIX vs COLRv1 — explained</h2>
+<h3>COLRv1</h3>
+<p>Stores icons as <strong>layered vector shapes</strong>, each assigned a colour from a CPAL palette table. Infinitely scalable, ~4 KB for 12 icons, fully recolourable via CSS <code>font-palette</code>. Not supported in Safari.</p>
+
+<h3>SBIX</h3>
+<p>Stores PNG bitmaps inside the font file, one per glyph per size ("strike"). Rendered natively on Apple platforms by CoreText. Fixed colours — cannot be recoloured with CSS. Slightly larger file (~40 KB for 12 icons across 4 strikes).</p>
+
+<table>
+  <thead><tr><th>Scenario</th><th>Use</th></tr></thead>
+  <tbody>
+    <tr><td>Web (Chrome / Firefox / Edge)</td><td>WOFF2 (COLRv1)</td></tr>
+    <tr><td>Safari / iOS web</td><td>WOFF2 + SBIX TTF fallback (load both, browser picks the one it can render)</td></tr>
+    <tr><td>macOS design tools</td><td>TTF — Safari &amp; iOS (SBIX)</td></tr>
+    <tr><td>iOS native app</td><td>TTF — Safari &amp; iOS (SBIX)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="safari">6. Safari &amp; iOS — the full picture</h2>
+<p>COLRv1 glyphs in the Private Use Area are <strong>invisible</strong> in Safari and all iOS browsers. The property is parsed (so <code>CSS.supports('font-palette', 'normal')</code> returns <code>true</code> in Safari 15.4+), but rendering produces nothing — and PUA codepoints have no OS fallback glyph.</p>
+
+<h3>Correct detection</h3>
+<pre><code>export function detectColrSupport() {
+  if (typeof window === "undefined") return true;
+  const ua = navigator.userAgent;
+
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" &amp;&amp; navigator.maxTouchPoints &gt; 1);
+
+  const isSafari =
+    /Safari/.test(ua) &amp;&amp;
+    !/Chrome|Chromium|CriOS|FxiOS|EdgA|OPR/.test(ua);
+
+  if (isIOS || isSafari) return false;
+  return CSS.supports("font-palette", "normal");
+}</code></pre>
+
+<h3>The Hue Type approach: hot-swap to SBIX on Safari</h3>
+<p>Load the SBIX TTF dynamically and register it under the same family name. The browser picks whichever face has visible glyphs:</p>
+<pre><code>useEffect(() =&gt; {
+  if (detectColrSupport()) return;            // Chrome/FF/Edge — keep COLR
+  const face = new FontFace("MyIcons", "url(/myicons-safari.ttf)", {
+    display: "block",
+  });
+  face.load().then((loaded) =&gt; document.fonts.add(loaded));
+}, []);</code></pre>
+<p>Result: pixel-identical UI on Safari and Chrome. SBIX glyphs carry their baked-in palette colours; CSS <code>font-palette</code> overrides have no visual effect on Safari but remain harmless.</p>
+
+<h3>When will Safari support COLRv1?</h3>
+<p>No confirmed timeline as of May 2026. <a href="https://bugs.webkit.org/show_bug.cgi?id=242154">WebKit bug 242154</a> has been open since 2022. Recommendation: design with the SBIX swap so today's Safari users see the same UI, then COLRv1 will activate automatically when WebKit ships support.</p>
+
+<h2 id="react">7. React / Next.js integration</h2>
+<h3>Loading the font</h3>
+<pre><code>/* app/globals.css */
+@font-face {
+  font-family: "MyIcons";
+  src: url("/fonts/yourfont.woff2") format("woff2");
+  font-display: block;
+}</code></pre>
+
+<h3>Preloading</h3>
+<pre><code>// app/layout.tsx
+&lt;link
+  rel="preload"
+  href="/fonts/yourfont.woff2"
+  as="font"
+  type="font/woff2"
+  crossOrigin="anonymous"
+/&gt;</code></pre>
+
+<h3>Dynamic load from a signed URL</h3>
+<pre><code>const res  = await fetch(signedUrl);
+const buf  = await res.arrayBuffer();
+const face = new FontFace(family, buf);
+await face.load();
+document.fonts.add(face);</code></pre>
+<p>Note: <code>document.fonts.check()</code> is unreliable for PUA codepoints. Use <code>document.fonts.forEach()</code> + status check instead.</p>
+
+<h2 id="size">8. File size &amp; performance</h2>
+<p>Real measured numbers — 12 COLRv1 glyphs:</p>
+<table>
+  <thead><tr><th>Format</th><th>Size</th><th>Requests</th><th>CSS recolour</th></tr></thead>
+  <tbody>
+    <tr><td>12 SVG files</td><td>~48 KB</td><td>12</td><td>Partial</td></tr>
+    <tr><td>12 PNG @2x</td><td>~120 KB</td><td>12</td><td>✗</td></tr>
+    <tr><td>1 WOFF2 (COLRv1)</td><td><strong>~4 KB</strong></td><td><strong>1</strong></td><td>✓</td></tr>
+    <tr><td>1 TTF + SBIX (Safari)</td><td>~40 KB</td><td>1</td><td>✗</td></tr>
+  </tbody>
+</table>
+<p>COLRv1 WOFF2 is <strong>15× smaller than SVGs</strong> and <strong>30× smaller than PNGs</strong> — a single cached request.</p>
+
+<h2 id="compare">9. Format comparison</h2>
+<table>
+  <thead><tr><th>Feature</th><th>SVG</th><th>PNG</th><th>COLRv1</th><th>SBIX</th></tr></thead>
+  <tbody>
+    <tr><td>Scalable</td><td>✓</td><td>✗</td><td>✓</td><td>Strikes only</td></tr>
+    <tr><td>Multi-colour</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td>CSS recolour</td><td>Partial</td><td>✗</td><td><strong>✓ font-palette</strong></td><td>✗</td></tr>
+    <tr><td>Single request</td><td>✗</td><td>Sprite only</td><td>✓</td><td>✓</td></tr>
+    <tr><td>Inline in HTML</td><td>✓ (bloated)</td><td>✗</td><td>✓ 1 char</td><td>✓ 1 char</td></tr>
+    <tr><td>CSS animation</td><td>JS/CSS</td><td>✗</td><td>✓ opacity crossfade</td><td>✗</td></tr>
+    <tr><td>Safari / iOS</td><td>✓</td><td>✓</td><td>✗</td><td>✓</td></tr>
+    <tr><td>Chrome / Firefox</td><td>✓</td><td>✓</td><td>✓</td><td>Partial</td></tr>
+    <tr><td>Size (12 icons)</td><td>~48 KB</td><td>~120 KB</td><td><strong>~4 KB</strong></td><td>~40 KB</td></tr>
+  </tbody>
+</table>
+
+<h2 id="faq">10. FAQ</h2>
+<h3>Can I make icons monochrome?</h3>
+<p>Override all colour slots with the same value: <code>override-colors: 0 #333, 1 #333, 2 #333;</code></p>
+
+<h3>Does font-palette animate with CSS transitions?</h3>
+<p>No — use the two-stacked-icons opacity crossfade pattern.</p>
+
+<h3>Can I use these in an &lt;img&gt; tag?</h3>
+<p>No. Use <code>&lt;span&gt;</code> or any inline element. <code>&lt;img&gt;</code> cannot use web fonts.</p>
+
+<h3>Will icons render in email clients?</h3>
+<p>No. Email strips <code>@font-face</code>. For emails, export individual PNGs and use <code>&lt;img&gt;</code> tags.</p>
+
+<h3>Why are my icons invisible in Safari?</h3>
+<p>Safari doesn't render COLRv1, and PUA codepoints have no fallback. Use the SBIX hot-swap pattern in section 6.</p>
+
+<h3>What codepoints are the glyphs at?</h3>
+<p>U+E001 through U+E00C — 12 glyphs total. <code>String.fromCodePoint(0xe001 + i)</code> for any <code>i</code> in 0…11.</p>
+
+<div class="footer">
+  <p>Hue Type · Last updated May 2026 · <a href="/">Back to home</a></p>
+</div>
+
+</main>
+
+</body>
+</html>

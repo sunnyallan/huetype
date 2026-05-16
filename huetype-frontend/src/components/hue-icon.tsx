@@ -23,18 +23,18 @@ import { useColrSupport } from "@/lib/use-colr-support";
  *   E00C  swap arrows          →  swap / refresh
  */
 export const HUE = {
-  illustration: "",
-  triTone:      "",
-  goArrow:      "",
-  upload:       "",
-  duoTone:      "",
-  edit:         "",
-  download:     "",
-  add:          "",
-  remove:       "",
-  newType:      "",
-  close:        "",
-  swap:         "",
+  illustration: "",
+  triTone:      "",
+  goArrow:      "",
+  upload:       "",
+  duoTone:      "",
+  edit:         "",
+  download:     "",
+  add:          "",
+  remove:       "",
+  newType:      "",
+  close:        "",
+  swap:         "",
 } as const;
 
 export type HueGlyph = keyof typeof HUE;
@@ -45,7 +45,9 @@ export const HUE_ALL: string[] = Array.from({ length: 12 }, (_, i) =>
 );
 
 /** Named palettes defined in globals.css. Use these to recolour an icon
- *  to suit its background — `default` keeps the font's baked-in colours. */
+ *  to suit its background — `default` keeps the font's baked-in colours.
+ *  On Safari/iOS the SBIX font carries fixed colours, so palette overrides
+ *  have no visual effect — glyphs always render with their baked-in palette. */
 export type HuePalette =
   | "default"
   | "ink"
@@ -62,28 +64,6 @@ export type HuePalette =
   | "close-hover"
   | "edit-hover";
 
-/**
- * Simple text/symbol fallbacks rendered when the browser doesn't support
- * COLR/font-palette (Safari / iOS as of 2026).
- * These keep the UI functional — buttons remain visible and labelled.
- */
-const GLYPH_FALLBACK: Record<HueGlyph, string> = {
-  illustration: "◉",
-  triTone:      "◔",
-  goArrow:      "↗",
-  upload:       "↑",
-  duoTone:      "◑",
-  edit:         "✏",
-  download:     "↓",
-  add:          "+",
-  remove:       "✕",
-  newType:      "Aa",
-  close:        "✕",
-  swap:         "⇄",
-};
-
-// Detection shared with Loader — lives in src/lib/use-colr-support.ts
-
 export function HueIcon({
   glyph,
   size = 16,
@@ -97,36 +77,13 @@ export function HueIcon({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const paletteSupported = useColrSupport();
+  // Side effect: triggers SBIX font load on Safari/iOS so the same glyph
+  // chars become visible. We don't branch on the return value — the font
+  // swap is transparent to the rendered output.
+  useColrSupport();
+
   const ch = glyph in HUE ? HUE[glyph as HueGlyph] : (glyph as string);
 
-  // ── Safari / iOS fallback ─────────────────────────────────────────────
-  // COLR/CPAL v1 fonts don't render in Safari. Since the codepoints are in
-  // the Private Use Area there's no OS fallback character either — the glyph
-  // is simply invisible. Show a plain Unicode symbol instead so buttons and
-  // labels remain visible and usable.
-  if (!paletteSupported) {
-    const fb =
-      glyph in GLYPH_FALLBACK
-        ? GLYPH_FALLBACK[glyph as HueGlyph]
-        : (glyph as string);
-    return (
-      <span
-        aria-hidden
-        className={className}
-        style={{
-          fontSize: size,
-          lineHeight: 1,
-          display: "inline-block",
-          ...style,
-        }}
-      >
-        {fb}
-      </span>
-    );
-  }
-
-  // ── Normal COLR render ────────────────────────────────────────────────
   return (
     <span
       aria-hidden
