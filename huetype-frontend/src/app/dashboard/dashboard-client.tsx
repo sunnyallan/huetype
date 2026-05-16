@@ -172,30 +172,16 @@ function NewTypeButton({ onClick }: { onClick: () => void }) {
           : "bg-ht-ink text-[#f7f8f8] border-transparent",
       ].join(" ")}
     >
-      {/* Two icons stacked — opacity crossfade gives smooth ease */}
-      <span className="relative inline-block ht-icon-stack" style={{ width: 24, height: 24 }}>
-        <HueIcon
-          glyph="newType"
-          size={24}
-          palette="default"
-          style={{
-            position: "absolute",
-            inset: 0,
-            opacity: hovered ? 0 : 1,
-            transition: "opacity 300ms ease-in-out",
-          }}
-        />
-        <HueIcon
-          glyph="newType"
-          size={24}
-          palette="brand"
-          style={{
-            position: "absolute",
-            inset: 0,
-            opacity: hovered ? 1 : 0,
-            transition: "opacity 300ms ease-in-out",
-          }}
-        />
+      {/*
+        Icon pinned to --ht-brand explicitly (lime/purple/pink) so the
+        button keeps its original look regardless of what CPAL palette 0
+        is baked into hue-type.ttf — rebuilds of the font file (e.g. when
+        new glyphs are added) can shift the "default" palette colours.
+        Both rest & hover use the same palette; the button background
+        flip is what signals hover state.
+      */}
+      <span className="relative inline-block" style={{ width: 24, height: 24 }}>
+        <HueIcon glyph="newType" size={24} palette="brand" />
       </span>
       <span className="text-sm font-normal">New Type</span>
     </button>
