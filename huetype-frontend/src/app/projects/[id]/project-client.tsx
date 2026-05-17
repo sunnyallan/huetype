@@ -194,6 +194,26 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
 
+  // Delete-project confirmation modal
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
+  const [deleteFontHovered, setDeleteFontHovered] = useState(false);
+  const [confirmDeleteHovered, setConfirmDeleteHovered] = useState(false);
+
+  async function deleteProject() {
+    if (!project) return;
+    setDeletingProject(true);
+    setError(null);
+    try {
+      await api.deleteProject(project.id);
+      router.push("/dashboard");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+      setDeletingProject(false);
+      setShowDeleteConfirm(false);
+    }
+  }
+
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const load = useCallback(async () => {
@@ -393,6 +413,71 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
 
   return (
     <main className="ht-app min-h-screen flex flex-col max-w-[1440px] mx-auto w-full">
+
+      {/* ── Delete Font confirm modal ────────────────────────────────────── */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 bg-ht-bg/85 backdrop-blur-sm flex items-center justify-center px-6"
+          onClick={() => !deletingProject && setShowDeleteConfirm(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-confirm-title"
+        >
+          <div
+            className="bg-ht-white rounded-ht-xl shadow-ht-card max-w-md w-full p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="delete-confirm-title" className="text-xl font-semibold text-ht-ink mb-3">
+              Delete this font?
+            </h2>
+            <p className="text-sm text-ht-ink/70 leading-relaxed mb-6">
+              You're about to permanently delete <strong className="text-ht-ink">{project.name}</strong>.
+              This removes the project, every uploaded glyph, and all built font
+              files. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deletingProject}
+                className="flex-1 ht-btn py-4 border border-ht-line bg-ht-white text-ht-ink hover:border-ht-ink transition-colors duration-200 ease-in-out disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteProject}
+                disabled={deletingProject}
+                onMouseEnter={() => setConfirmDeleteHovered(true)}
+                onMouseLeave={() => setConfirmDeleteHovered(false)}
+                className={[
+                  "flex-1 ht-btn py-4 border transition-all duration-300 ease-in-out disabled:opacity-40",
+                  confirmDeleteHovered
+                    ? "bg-red-600 border-red-600 text-white"
+                    : "bg-red-50 border-red-200 text-red-600",
+                ].join(" ")}
+              >
+                {deletingProject ? (
+                  <>
+                    <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  <>
+                    {/* Icon crossfade: ink at rest → ref-inv (white) on red hover */}
+                    <span className="ht-icon-stack" style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+                      <HueIcon glyph="close" size={16} palette="ink"
+                        style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: confirmDeleteHovered ? 0 : 1 }} />
+                      <HueIcon glyph="close" size={16} palette="ref-inv"
+                        style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: confirmDeleteHovered ? 1 : 0 }} />
+                    </span>
+                    Delete font
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Build overlay */}
       {isBuilding && (
         <div className="fixed inset-0 z-40 bg-ht-bg/85 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
@@ -469,6 +554,30 @@ export default function ProjectClient({ projectId }: { projectId: string }) {
             <span className="ht-chip">{project.glyphs.length} Glyphs</span>
           </div>
         </div>
+
+        {/* Delete Font — destructive action, styled to match Delete Icon button */}
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          onMouseEnter={() => setDeleteFontHovered(true)}
+          onMouseLeave={() => setDeleteFontHovered(false)}
+          disabled={deletingProject}
+          aria-label="Delete font"
+          className={[
+            "shrink-0 ht-btn py-5 pl-5 pr-7 border transition-all duration-300 ease-in-out disabled:opacity-40",
+            deleteFontHovered
+              ? "bg-red-600 border-red-600 text-white"
+              : "bg-red-50 border-red-200 text-red-600",
+          ].join(" ")}
+        >
+          {/* Icon crossfade: ink at rest → ref-inv (white) on dark red hover */}
+          <span className="ht-icon-stack" style={{ position: "relative", display: "inline-flex", width: 16, height: 16, flexShrink: 0 }}>
+            <HueIcon glyph="close" size={16} palette="ink"
+              style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: deleteFontHovered ? 0 : 1 }} />
+            <HueIcon glyph="close" size={16} palette="ref-inv"
+              style={{ position: "absolute", inset: 0, transition: "opacity 300ms ease-in-out", opacity: deleteFontHovered ? 1 : 0 }} />
+          </span>
+          Delete Font
+        </button>
 
         {/* Close — back to dashboard */}
         <IconHoverBtn
