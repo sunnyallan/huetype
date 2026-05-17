@@ -91,6 +91,20 @@ export default function LoginPage() {
               </Link>
               . We only read your email, name, and profile picture from Google.
             </p>
+
+            <details className="mt-4 max-w-xs">
+              <summary className="text-[11px] text-ht-ink/50 cursor-pointer hover:text-ht-ink/80 select-none">
+                Why does Google show a warning?
+              </summary>
+              <p className="text-[11px] text-ht-ink/50 mt-2 leading-relaxed">
+                Hue Type is a small indie product still completing
+                Google&apos;s verification process. You may see a
+                &ldquo;Google hasn&apos;t verified this app&rdquo; warning —
+                click <strong>Advanced → Go to Hue Type</strong> to continue.
+                Hue Type only reads your email, name, and profile picture;
+                nothing else.
+              </p>
+            </details>
           </div>
 
           <p className="mt-6 text-center text-xs text-ht-ink/50">
