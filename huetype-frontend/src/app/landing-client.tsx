@@ -76,7 +76,12 @@ export default function LandingClient() {
       {/* ── 1. Navbar ──────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-ht-white shadow-ht-soft border-b border-ht-surface">
         <div className="max-w-[1440px] mx-auto px-6 py-3 flex items-center justify-between">
-          <Logo size={36} />
+          <div className="flex items-center gap-3">
+            <Logo size={36} />
+            <span className="text-base font-semibold text-ht-ink tracking-tight">
+              Hue Type
+            </span>
+          </div>
           <div className="flex items-center gap-4">
             <a
               href="/docs.html"
@@ -567,7 +572,7 @@ button:hover .icon-hover { opacity: 1; }`}</pre>
         <div className="max-w-[1440px] mx-auto flex items-center justify-between text-xs text-ht-ink/40">
           <div className="flex items-center gap-3">
             <Logo size={24} />
-            <span>© 2026 Hue Type</span>
+            <span><strong className="font-medium text-ht-ink/80">Hue Type</strong> · © 2026 · by Sunny Allan</span>
           </div>
           <div className="flex items-center gap-6">
             <a
