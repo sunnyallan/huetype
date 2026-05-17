@@ -577,6 +577,12 @@ button:hover .icon-hover { opacity: 1; }`}</pre>
               Docs
             </a>
             <Link
+              href="/privacy"
+              className="hover:text-ht-ink transition-colors duration-200 ease-in-out"
+            >
+              Privacy
+            </Link>
+            <Link
               href="/login"
               className="hover:text-ht-ink transition-colors duration-200 ease-in-out"
             >

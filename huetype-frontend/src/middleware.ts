@@ -35,6 +35,7 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute =
     path === "/" ||
     path === "/login" ||
+    path === "/privacy" ||
     path === "/docs.html" ||
     path.startsWith("/auth") ||
     path.startsWith("/opengraph-image") ||

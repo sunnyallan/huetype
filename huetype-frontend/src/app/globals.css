@@ -11,6 +11,52 @@
   font-style: normal;
 }
 
+/* ── Long-form prose (privacy, terms, etc.) ─────────────────────────────
+   Used inside the privacy policy page. Scoped to `.prose-block` so we
+   don't override Tailwind defaults elsewhere. */
+.prose-block {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #2a2b30;
+}
+.prose-block h2 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 48px 0 14px;
+  scroll-margin-top: 80px;
+}
+.prose-block h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 24px 0 8px;
+}
+.prose-block p { margin: 10px 0; }
+.prose-block ul, .prose-block ol { padding-left: 24px; margin: 10px 0; }
+.prose-block li { margin: 5px 0; }
+.prose-block a { color: #7c6af5; }
+.prose-block a:hover { text-decoration: underline; }
+.prose-block code {
+  background: #ececec;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.prose-block table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.prose-block th, .prose-block td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e6e6e6;
+  vertical-align: top;
+}
+.prose-block th { font-weight: 600; background: #fafafa; }
+
 /* ── Safari / iOS banner ────────────────────────────────────────────────
    Renders only on Safari / iOS (see SafariBanner component). Pinned at
    the top, pushes body content down by its own height. Sticky navbars

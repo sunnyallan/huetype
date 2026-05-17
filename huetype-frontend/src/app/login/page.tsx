@@ -85,9 +85,11 @@ export default function LoginPage() {
             )}
 
             <p className="text-[11px] text-ht-ink/40 mt-8 max-w-xs leading-relaxed">
-              By continuing you agree to receive a one-time authentication
-              redirect to Google. No account creation needed — your Google
-              identity is used.
+              By continuing you agree to our{" "}
+              <Link href="/privacy" className="underline hover:text-ht-ink">
+                Privacy Policy
+              </Link>
+              . We only read your email, name, and profile picture from Google.
             </p>
           </div>
 
