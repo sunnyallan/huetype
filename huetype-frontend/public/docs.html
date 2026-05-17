@@ -31,6 +31,33 @@
     padding: 14px 24px;
     display: flex; align-items: center; justify-content: space-between;
   }
+  /* Safari / iOS banner — matches the React SafariBanner in the main app */
+  .ht-safari-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 36px;
+    background: #eefa94;
+    color: #17181c;
+    font-size: 12.5px;
+    text-align: center;
+    z-index: 100;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    letter-spacing: -0.005em;
+  }
+  .ht-safari-banner strong { font-weight: 600; }
+  /* When the banner is on, push body down and nudge the sticky topbar
+     and sidebar (which sits at top: 80px normally) below the banner. */
+  body.has-safari-banner { padding-top: 36px; }
+  body.has-safari-banner .topbar { top: 36px; }
+  body.has-safari-banner aside.sidebar { top: 116px; }
+  @media (max-width: 600px) {
+    .ht-safari-banner { font-size: 11.5px; padding: 0 12px; }
+    .ht-safari-banner .banner-detail { display: none; }
+  }
   .topbar a { color: var(--ink); text-decoration: none; font-weight: 600; }
   .topbar nav a { font-weight: 400; color: var(--mute); margin-left: 20px; }
   .topbar nav a:hover { color: var(--ink); }
@@ -920,6 +947,28 @@ document.fonts.add(face);</code></pre>
 </main>
 
 </div><!-- /.layout -->
+
+<script>
+  // Safari / iOS banner — mirrors the React SafariBanner across the app.
+  // Pinned at top, warns the user that COLRv1 isn't fully supported in
+  // WebKit so they're seeing a limited preview.
+  (function() {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafari = /Safari/.test(ua) &&
+      !/Chrome|Chromium|CriOS|FxiOS|EdgA|OPR/.test(ua);
+    if (!(isIOS || isSafari)) return;
+
+    document.body.classList.add('has-safari-banner');
+    const banner = document.createElement('div');
+    banner.className = 'ht-safari-banner';
+    banner.setAttribute('role', 'status');
+    banner.innerHTML = '<strong>Best viewed on Chrome, Firefox or Edge</strong>' +
+      '<span class="banner-detail"> &mdash; Safari &amp; iOS render a limited preview of colour fonts.</span>';
+    document.body.insertBefore(banner, document.body.firstChild);
+  })();
+</script>
 
 <script>
   // Sidebar scroll-spy: highlight the section that's currently visible

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Albert_Sans } from "next/font/google";
 import "./globals.css";
 import SafariFontInit from "@/components/safari-font-init";
+import SafariBanner from "@/components/safari-banner";
 
 const albertSans = Albert_Sans({
   subsets: ["latin"],
@@ -55,6 +56,7 @@ export default function RootLayout({
     <html lang="en" className={albertSans.variable}>
       <body>
         <SafariFontInit />
+        <SafariBanner />
         {children}
       </body>
     </html>

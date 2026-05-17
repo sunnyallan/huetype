@@ -11,6 +11,38 @@
   font-style: normal;
 }
 
+/* ── Safari / iOS banner ────────────────────────────────────────────────
+   Renders only on Safari / iOS (see SafariBanner component). Pinned at
+   the top, pushes body content down by its own height. Sticky navbars
+   are nudged down by the same amount so they sit BELOW the banner
+   instead of overlapping it. */
+.ht-safari-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  background: #eefa94; /* ht-lime */
+  color: #17181c;     /* ht-ink */
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: center;
+  z-index: 100;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  letter-spacing: -0.005em;
+}
+.ht-safari-banner strong { font-weight: 600; }
+/* When the .ht-no-colr class is present on <html>, the banner is shown.
+   Push everything else down by the banner height. */
+.ht-no-colr body { padding-top: 36px; }
+/* Nudge any sticky-to-viewport-top elements down by the banner height
+   so they stack below it instead of being covered. */
+.ht-no-colr .top-0 { top: 36px !important; }
+
 /* ── Safari hover crossfade substitute ──────────────────────────────────
    On Safari/iOS the active icon font is SBIX (fixed-colour bitmaps), so
    the opacity-crossfade between two @font-palette-values produces no
