@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Albert_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import SafariFontInit from "@/components/safari-font-init";
 import SafariBanner from "@/components/safari-banner";
@@ -54,6 +55,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={albertSans.variable}>
+      <head>
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-KEQ427CMWZ"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-KEQ427CMWZ');
+          `}
+        </Script>
+      </head>
       <body>
         <SafariFontInit />
         <SafariBanner />
